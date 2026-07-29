@@ -1,0 +1,4 @@
+interface:
+  display_name: "NoneLinear 图片生成与编辑"
+  short_description: "通过 NoneLinear API 生成、编辑和融合图片"
+  default_prompt: "使用 $nonelinear-image 生成图片、编辑参考图或融合多张图片。"
