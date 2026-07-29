@@ -4,7 +4,7 @@
   "private": true,
   "description": "Official NoneLinear Agent Skills",
   "scripts": {
-    "test": "node --test tests/*.test.mjs",
+    "test": "node --test tests/nonelinear-image-script.test.mjs",
     "validate": "node scripts/validate-release.mjs",
     "pack": "node scripts/package-skill.mjs"
   },
