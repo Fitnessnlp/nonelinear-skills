@@ -13,12 +13,16 @@ Skill 自带无第三方依赖的 Node.js 脚本，不需要安装 NoneLinear CL
 - 多图融合
 - 本地图片安全上传
 - `gemini-2.5-flash-image`
-- `gpt-image-2` 的 `size` 和 `quality`
+- `gpt-image-2` 的 `size`、`quality` 和透明背景 PNG
 - `doubao-seedream-5-0-pro-260628` 的完整参数适配
+- 版本化模型能力注册表
 - 稳定 JSON 输出
 - 阻止 base64 图片进入 Agent 上下文
 
-当前版本：`0.2.0`
+当前版本：`0.3.0`
+
+后续版本范围、验收指标以及与生图评测的协同方式见
+[生图 Skill 产品规划](docs/nonelinear-image-product-plan.md)。
 
 ## 平台兼容性
 
@@ -41,8 +45,8 @@ Skill 自带无第三方依赖的 Node.js 脚本，不需要安装 NoneLinear CL
 下载：
 
 ```text
-nonelinear-image-0.2.0.zip
-nonelinear-image-0.2.0.tgz
+nonelinear-image-0.3.0.zip
+nonelinear-image-0.3.0.tgz
 SHA256SUMS
 ```
 
@@ -64,14 +68,14 @@ macOS / Linux：
 
 ```bash
 mkdir -p ~/.claude/skills
-unzip nonelinear-image-0.2.0.zip -d ~/.claude/skills
+unzip nonelinear-image-0.3.0.zip -d ~/.claude/skills
 ```
 
 Windows PowerShell：
 
 ```powershell
 New-Item -ItemType Directory -Force -Path "$HOME\.claude\skills" | Out-Null
-Expand-Archive .\nonelinear-image-0.2.0.zip -DestinationPath "$HOME\.claude\skills" -Force
+Expand-Archive .\nonelinear-image-0.3.0.zip -DestinationPath "$HOME\.claude\skills" -Force
 ```
 
 也可以把 `nonelinear-image` 放在项目的 `.claude/skills/` 下。安装后新建 Claude Code
@@ -87,14 +91,14 @@ macOS / Linux：
 
 ```bash
 mkdir -p ~/.agents/skills
-unzip nonelinear-image-0.2.0.zip -d ~/.agents/skills
+unzip nonelinear-image-0.3.0.zip -d ~/.agents/skills
 ```
 
 Windows PowerShell：
 
 ```powershell
 New-Item -ItemType Directory -Force -Path "$HOME\.agents\skills" | Out-Null
-Expand-Archive .\nonelinear-image-0.2.0.zip -DestinationPath "$HOME\.agents\skills" -Force
+Expand-Archive .\nonelinear-image-0.3.0.zip -DestinationPath "$HOME\.agents\skills" -Force
 ```
 
 也可以把 `nonelinear-image` 放在项目的 `.agents/skills/` 下。安装后新建 Codex
@@ -106,7 +110,7 @@ Expand-Archive .\nonelinear-image-0.2.0.zip -DestinationPath "$HOME\.agents\skil
 
 ## TRAE、Cherry Studio 和 WorkBuddy
 
-优先下载 `nonelinear-image-0.2.0.zip`，通过宿主的 Skills 管理界面上传或导入。
+优先下载 `nonelinear-image-0.3.0.zip`，通过宿主的 Skills 管理界面上传或导入。
 
 TRAE 也可以使用项目级目录：
 
@@ -122,6 +126,20 @@ TRAE 也可以使用项目级目录：
 - API key 被注入脚本子进程，而不是粘贴到聊天中。
 
 在这些平台完成真实认证前，问题反馈请包含宿主名称、版本、操作系统和脱敏错误码。
+
+## 模型能力注册表
+
+`skills/nonelinear-image/references/model-capabilities.json` 是 0.3.0 起的模型能力来源。
+状态含义：
+
+- `candidate`：文档出现过，当前 Skill 尚未接入。
+- `passthrough`：可传模型 ID，缺少完整校验。
+- `implemented`：已有参数映射、限制和错误处理。
+- `live_verified`：真实 API 请求通过。
+- `host_verified`：真实 Agent 端到端通过。
+
+当前深度适配：`gemini-2.5-flash-image`、`gpt-image-2`、
+`doubao-seedream-5-0-pro-260628`。其他文档模型按注册表状态处理。
 
 ## 配置 API Key
 

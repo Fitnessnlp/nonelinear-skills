@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.0 - 2026-08-06
+
+- Added `references/model-capabilities.json` as the versioned image model capability registry.
+- Centralized model IDs, vendors, status levels, supported operations, reference-image limits,
+  parameter values, request timeouts, known errors, and response-format rules.
+- Updated the image script to derive default model, endpoint, local upload suffixes, model
+  operation checks, parameter validation, reference limits, timeout values, and local image size
+  limits from the registry.
+- Added candidate-model blocking with `not_implemented`.
+- Updated Skill and repository docs for the 0.3.0 model registry.
+- Added validated `gpt-image-2` transparent-background generation with PNG/WebP output.
+
 ## 0.2.0 - 2026-07-29
 
 - Added text-to-image, single-image editing, and multi-image fusion.

@@ -10,6 +10,7 @@ const requiredFiles = [
   "SKILL.md",
   "agents/openai.yaml",
   "references/image-api.md",
+  "references/model-capabilities.json",
   "references/models.md",
   "scripts/generate-image.mjs"
 ];
@@ -32,8 +33,20 @@ if (
 ) {
   fail("SKILL.md must contain valid name and description frontmatter.");
 }
-if (!skillText.includes('version: "0.2.0"')) {
-  fail("SKILL.md version must match release version 0.2.0.");
+if (!skillText.includes('version: "0.3.0"')) {
+  fail("SKILL.md version must match release version 0.3.0.");
+}
+
+const registry = JSON.parse(
+  await readFile(path.join(skillRoot, "references", "model-capabilities.json"), "utf8")
+);
+if (
+  registry.version !== "0.3.0" ||
+  registry.defaults?.model !== "gemini-2.5-flash-image" ||
+  !Array.isArray(registry.models) ||
+  registry.models.length < 10
+) {
+  fail("model-capabilities.json must contain the 0.3.0 model registry.");
 }
 
 const files = await walk(root);

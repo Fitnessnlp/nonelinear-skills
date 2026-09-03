@@ -20,12 +20,22 @@ Image request fields:
 | `size` | string | no | Include only for models that support it. |
 | `quality` | string | no | `gpt-image-2` only: `low`, `medium`, `high`, or `auto`. |
 | `n` | integer | no | Include only for models that support it. |
-| `output_format` | string | no | Seedream 5 Pro only: `png` or `jpeg`. |
+| `output_format` | string | no | `gpt-image-2`: `png`, `jpeg`, or `webp`; Seedream 5 Pro: `png` or `jpeg`. |
+| `background` | string | no | `gpt-image-2` generation only: `auto`, `opaque`, or `transparent`. |
 | `watermark` | boolean | no | Seedream 5 Pro only in this Skill. |
 | `optimize_prompt_options` | object | no | Seedream 5 Pro only: `{ "mode": "standard" }` or `fast`. |
 
 The bundled script intentionally does not accept an endpoint option, arbitrary headers, an API
 key argument, or an arbitrary JSON body.
+
+For a transparent `gpt-image-2` result, set `background=transparent`, use PNG or WebP output,
+and explicitly request a transparent background in the prompt. Exclude floors, shadows,
+reflections, and scene elements when a clean cutout is required.
+
+Model-specific support is versioned in
+[model-capabilities.json](model-capabilities.json). The script uses that registry for default
+model selection, supported operations, reference image limits, allowed parameter values, request
+timeouts, and candidate-model blocking.
 
 All three operations use this endpoint:
 
@@ -93,6 +103,7 @@ from the URL suffix.
 | `missing_api_key` | No permitted credential was found in the process environment. |
 | `invalid_arguments` | A required argument is missing or an option is malformed. |
 | `invalid_model` | The API rejected or could not find the model ID. |
+| `not_implemented` | The model is documented or mentioned, but this Skill has not connected it. |
 | `file_read_error` | A local reference image could not be read. |
 | `upload_error` | A local reference image could not be uploaded or produced no valid URL. |
 | `invalid_image` | A local reference image violates a model-specific input limit. |

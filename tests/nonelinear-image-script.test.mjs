@@ -8,12 +8,15 @@ import {
   API_ENDPOINT,
   DEFAULT_MODEL,
   DEFAULT_TIMEOUT_MS,
+  MODEL_CAPABILITY_REGISTRY,
+  MODEL_CAPABILITY_REGISTRY_VERSION,
   SEEDREAM_5_MODEL,
   SEEDREAM_5_TIMEOUT_MS,
   UPLOAD_ENDPOINT,
   SkillError,
   failureResult,
   generateImage,
+  modelCapabilityFor,
   parseArguments,
   requestTimeoutMsForModel,
   resolveApiKey
@@ -22,6 +25,25 @@ import {
 const TEST_KEY = "sentinel-secret-value";
 const testDirectory = path.dirname(fileURLToPath(import.meta.url));
 const scriptPath = path.resolve(testDirectory, "../skills/nonelinear-image/scripts/generate-image.mjs");
+
+test("loads the versioned model capability registry", () => {
+  assert.equal(MODEL_CAPABILITY_REGISTRY_VERSION, "0.3.0");
+  assert.equal(MODEL_CAPABILITY_REGISTRY.defaults.model, DEFAULT_MODEL);
+
+  const defaultCapability = modelCapabilityFor(DEFAULT_MODEL);
+  assert.equal(defaultCapability.id, DEFAULT_MODEL);
+  assert.equal(defaultCapability.status, "host_verified");
+  assert.deepEqual(defaultCapability.supported_operations, ["generate", "edit", "fuse"]);
+
+  const seedreamCapability = modelCapabilityFor(SEEDREAM_5_MODEL);
+  assert.equal(seedreamCapability.vendor, "ByteDance Doubao");
+  assert.equal(seedreamCapability.reference_images.max, 10);
+  assert.equal(seedreamCapability.input_image_limits.max_file_size_bytes, 10 * 1024 * 1024);
+
+  const familyCapability = modelCapabilityFor("qwen-image-edit-max");
+  assert.equal(familyCapability.status, "passthrough");
+  assert.equal(familyCapability.vendor, "Alibaba Qwen");
+});
 
 test("parses a Chinese prompt with stable defaults", () => {
   assert.deepEqual(parseArguments(["--prompt", "生成一张清晨自然光下的白色陶瓷杯产品图"]), {
@@ -35,6 +57,7 @@ test("parses a Chinese prompt with stable defaults", () => {
     n: undefined,
     responseFormat: "url",
     outputFormat: undefined,
+    background: undefined,
     watermark: undefined,
     optimizePromptMode: undefined
   });
@@ -66,6 +89,7 @@ test("parses supported gpt-image-2 options", () => {
       n: 2,
       responseFormat: "url",
       outputFormat: undefined,
+      background: undefined,
       watermark: undefined,
       optimizePromptMode: undefined
     }
@@ -91,6 +115,7 @@ test("infers edit and fuse operations from repeated image URLs", () => {
       n: undefined,
       responseFormat: "url",
       outputFormat: undefined,
+      background: undefined,
       watermark: undefined,
       optimizePromptMode: undefined
     }
@@ -203,6 +228,10 @@ test("validates gpt-image-2 size constraints and rejects aspect_ratio", () => {
     parseArguments(["--model", "gpt-image-2", "--prompt", "测试", "--size", "auto"]).size,
     "auto"
   );
+  assert.equal(
+    parseArguments(["--model", "gpt-image-2", "--prompt", "测试", "--size", "832x1248"]).size,
+    "832x1248"
+  );
   assert.throws(
     () => parseArguments(["--model", "gpt-image-2", "--prompt", "测试", "--size", "1000x1000"]),
     hasCode("invalid_arguments")
@@ -219,6 +248,72 @@ test("validates gpt-image-2 size constraints and rejects aspect_ratio", () => {
       ]),
     hasCode("invalid_arguments")
   );
+});
+
+test("uses registry constraints for Gemini image models", () => {
+  assert.throws(
+    () => parseArguments(["--prompt", "测试", "--size", "1K"]),
+    hasCode("invalid_arguments")
+  );
+
+  const parsed = parseArguments([
+    "--model",
+    "gemini-3.1-flash-image-preview",
+    "--prompt",
+    "生成一张长横幅",
+    "--aspect-ratio",
+    "8:1",
+    "--size",
+    "4K"
+  ]);
+  assert.equal(parsed.aspectRatio, "8:1");
+  assert.equal(parsed.size, "4K");
+
+  assert.throws(
+    () =>
+      parseArguments([
+        "--model",
+        "gemini-3-pro-image-preview",
+        "--prompt",
+        "测试",
+        "--aspect-ratio",
+        "8:1"
+      ]),
+    hasCode("invalid_arguments")
+  );
+});
+
+test("uses registry constraints for candidate and generation-only models", () => {
+  assert.throws(
+    () => parseArguments(["--model", "qwen-mt-image", "--prompt", "翻译图片"]),
+    hasCode("not_implemented")
+  );
+  assert.throws(
+    () =>
+      parseArguments([
+        "--model",
+        "imagen-4.0-generate-001",
+        "--prompt",
+        "生成一张海报",
+        "--image",
+        "https://images.example.test/source.png"
+      ]),
+    hasCode("invalid_arguments")
+  );
+
+  const imagen = parseArguments([
+    "--model",
+    "imagen-4.0-generate-001",
+    "--prompt",
+    "生成一张海报",
+    "--aspect-ratio",
+    "16:9",
+    "--size",
+    "2K",
+    "--n",
+    "4"
+  ]);
+  assert.equal(imagen.n, 4);
 });
 
 test("parses every supported Seedream 5 Pro option", () => {
@@ -248,6 +343,7 @@ test("parses every supported Seedream 5 Pro option", () => {
       n: undefined,
       responseFormat: "url",
       outputFormat: "png",
+      background: undefined,
       watermark: false,
       optimizePromptMode: "fast"
     }
@@ -471,6 +567,85 @@ test("sends gpt-image-2 size and quality at the top level", async () => {
 
   assert.equal(requestBody.size, "2048x1152");
   assert.equal(requestBody.quality, "low");
+});
+
+test("sends gpt-image-2 transparent background options at the top level", async () => {
+  let requestBody;
+  const options = parseArguments([
+    "--model",
+    "gpt-image-2",
+    "--prompt",
+    "护肤品概念瓶，透明背景，不要场景、地面和投影",
+    "--size",
+    "1024x1024",
+    "--quality",
+    "high",
+    "--background",
+    "transparent",
+    "--output-format",
+    "png"
+  ]);
+
+  assert.equal(options.background, "transparent");
+  assert.equal(options.outputFormat, "png");
+
+  await generateImage(options, {
+    env: { NONELINEAR_API_KEY: TEST_KEY },
+    fetchImpl: async (_url, init) => {
+      requestBody = JSON.parse(init.body);
+      return imageResponse("transparent-product.png");
+    }
+  });
+
+  assert.equal(requestBody.background, "transparent");
+  assert.equal(requestBody.output_format, "png");
+});
+
+test("rejects unsupported transparent background combinations before a request", () => {
+  assert.throws(
+    () =>
+      parseArguments([
+        "--prompt",
+        "透明背景产品图",
+        "--background",
+        "transparent",
+        "--output-format",
+        "png"
+      ]),
+    hasCode("invalid_arguments")
+  );
+  assert.throws(
+    () =>
+      parseArguments([
+        "--model",
+        "gpt-image-2",
+        "--prompt",
+        "透明背景产品图",
+        "--background",
+        "transparent",
+        "--output-format",
+        "jpeg"
+      ]),
+    hasCode("invalid_arguments")
+  );
+  assert.throws(
+    () =>
+      parseArguments([
+        "--model",
+        "gpt-image-2",
+        "--operation",
+        "edit",
+        "--image",
+        "https://images.example.test/source.png",
+        "--prompt",
+        "透明背景产品图",
+        "--background",
+        "transparent",
+        "--output-format",
+        "png"
+      ]),
+    hasCode("invalid_arguments")
+  );
 });
 
 test("sends Seedream 5 Pro options at the documented top-level fields", async () => {

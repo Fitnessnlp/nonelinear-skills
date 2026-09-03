@@ -1,0 +1,416 @@
+{
+  "version": "0.3.0",
+  "generated_from": [
+    {
+      "path": "api/images.mdx",
+      "sections": ["参数表", "Google Gemini 注意事项", "豆包 Seedream", "cURL 调用示例"]
+    },
+    {
+      "path": "userguide/features/image.mdx",
+      "sections": ["生图模型概览"]
+    }
+  ],
+  "status_levels": {
+    "candidate": "Documented or mentioned, but not connected by this Skill.",
+    "passthrough": "The Skill can pass the model ID with generic safety checks, but does not provide complete model-specific validation.",
+    "implemented": "The Skill has model-specific parameter mapping, limits, and error handling.",
+    "live_verified": "A direct real API request has passed.",
+    "host_verified": "A real host Agent end-to-end flow has passed."
+  },
+  "defaults": {
+    "model": "gemini-2.5-flash-image",
+    "request_timeout_ms": 300000,
+    "response_format": "url"
+  },
+  "endpoints": {
+    "image_generation": "https://api.nonelinear.com/v1/images/generations",
+    "local_upload": "https://nonelinear.com/api/upload-file"
+  },
+  "local_upload": {
+    "allowed_file_extensions": [".bmp", ".gif", ".jpeg", ".jpg", ".png", ".tif", ".tiff", ".webp"],
+    "base64_scope": "child_process_only",
+    "response_field": "url"
+  },
+  "common_response": {
+    "success_requires_url": true,
+    "base64_output_blocked": true,
+    "empty_image_error_code": "no_image_output",
+    "request_id_sources": ["x-request-id", "request-id", "request_id"]
+  },
+  "models": [
+    {
+      "id": "gemini-2.5-flash-image",
+      "vendor": "Google",
+      "status": "host_verified",
+      "document_sources": ["api/images.mdx:84", "api/images.mdx:132-170", "api/images.mdx:789"],
+      "supported_operations": ["generate", "edit", "fuse"],
+      "reference_images": { "min": 0, "max": 3, "required": false },
+      "input_image_limits": { "source": "provider_validated" },
+      "parameters": {
+        "aspect_ratio": {
+          "supported": true,
+          "allowed": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"],
+          "default": "1:1"
+        },
+        "size": { "supported": false },
+        "quality": { "supported": false },
+        "n": { "supported": false },
+        "response_format": { "supported": true, "allowed": ["url"] }
+      },
+      "request_timeout_ms": 300000,
+      "may_return_empty_image": true,
+      "known_errors": ["IMAGE_RECITATION", "NO_IMAGE", "data_empty", "text_only_success"],
+      "response_format": { "url": true, "b64_json": "blocked" }
+    },
+    {
+      "id": "gemini-3.1-flash-image-preview",
+      "vendor": "Google",
+      "status": "passthrough",
+      "document_sources": ["api/images.mdx:86", "api/images.mdx:171-185"],
+      "supported_operations": ["generate", "edit", "fuse"],
+      "reference_images": { "min": 0, "max": 14, "required": false, "high_fidelity_max": 5 },
+      "input_image_limits": { "source": "provider_validated" },
+      "parameters": {
+        "aspect_ratio": {
+          "supported": true,
+          "allowed": ["1:1", "1:4", "1:8", "2:3", "3:2", "3:4", "4:1", "4:3", "4:5", "5:4", "8:1", "9:16", "16:9", "21:9"],
+          "default": "1:1"
+        },
+        "size": { "supported": true, "allowed": ["512", "1K", "2K", "4K"] },
+        "quality": { "supported": false },
+        "n": { "supported": false },
+        "response_format": { "supported": true, "allowed": ["url"] }
+      },
+      "request_timeout_ms": 300000,
+      "may_return_empty_image": true,
+      "known_errors": ["IMAGE_RECITATION", "NO_IMAGE", "data_empty", "text_only_success"],
+      "response_format": { "url": true, "b64_json": "blocked" }
+    },
+    {
+      "id": "gemini-3-pro-image-preview",
+      "vendor": "Google",
+      "status": "passthrough",
+      "document_sources": ["api/images.mdx:85", "api/images.mdx:187-201"],
+      "supported_operations": ["generate", "edit", "fuse"],
+      "reference_images": { "min": 0, "max": 14, "required": false, "high_fidelity_max": 5 },
+      "input_image_limits": { "source": "provider_validated" },
+      "parameters": {
+        "aspect_ratio": {
+          "supported": true,
+          "allowed": ["1:1", "2:3", "3:2", "3:4", "4:3", "4:5", "5:4", "9:16", "16:9", "21:9"],
+          "default": "1:1"
+        },
+        "size": { "supported": true, "allowed": ["1K", "2K", "4K"] },
+        "quality": { "supported": false },
+        "n": { "supported": false },
+        "response_format": { "supported": true, "allowed": ["url"] }
+      },
+      "request_timeout_ms": 300000,
+      "may_return_empty_image": true,
+      "known_errors": ["IMAGE_RECITATION", "NO_IMAGE", "data_empty", "text_only_success"],
+      "response_format": { "url": true, "b64_json": "blocked" }
+    },
+    {
+      "id": "gpt-image-2",
+      "vendor": "OpenAI",
+      "status": "implemented",
+      "document_sources": ["api/images.mdx:58", "api/images.mdx:95-130", "api/images.mdx:134-172"],
+      "supported_operations": ["generate", "edit", "fuse"],
+      "reference_images": { "min": 0, "max": 16, "required": false },
+      "input_image_limits": { "source": "provider_validated" },
+      "parameters": {
+        "aspect_ratio": { "supported": false },
+        "size": {
+          "supported": true,
+          "allowed": ["1024x1024", "832x1248", "1248x832", "864x1184", "1184x864", "896x1152", "1152x896", "768x1344", "1344x768", "1536x1024", "1024x1536", "1792x1024", "1024x1792", "2048x2048", "auto"],
+          "custom_constraints": {
+            "max_edge_px": 3840,
+            "width_height_multiple": 16,
+            "max_long_short_ratio": 3,
+            "min_total_pixels": 655360,
+            "max_total_pixels": 8294400
+          }
+        },
+        "quality": { "supported": true, "allowed": ["low", "medium", "high", "auto"], "default": "auto" },
+        "n": { "supported": true, "min": 1, "max": 10, "default": 1 },
+        "background": { "supported": true, "allowed": ["auto", "opaque", "transparent"], "default": "auto" },
+        "output_format": { "supported": true, "allowed": ["png", "jpeg", "webp"] },
+        "response_format": { "supported": true, "allowed": ["url"] }
+      },
+      "request_timeout_ms": 300000,
+      "may_return_empty_image": false,
+      "known_errors": ["invalid_size", "unsupported_quality", "unsupported_background", "invalid_reference_image"],
+      "response_format": { "url": true, "b64_json": "blocked" }
+    },
+    {
+      "id": "doubao-seedream-5-0-pro-260628",
+      "vendor": "ByteDance Doubao",
+      "status": "implemented",
+      "document_sources": ["api/images.mdx:82", "api/images.mdx:271-290", "api/images.mdx:324-513"],
+      "supported_operations": ["generate", "edit", "fuse"],
+      "reference_images": { "min": 0, "max": 10, "required": false },
+      "input_image_limits": {
+        "formats": ["jpeg", "png", "webp", "bmp", "tiff", "gif"],
+        "max_file_size_bytes": 10485760,
+        "min_width_px_exclusive": 14,
+        "min_height_px_exclusive": 14,
+        "aspect_ratio_min": "1:16",
+        "aspect_ratio_max": "16:1",
+        "max_canvas_px": "6000x6000"
+      },
+      "parameters": {
+        "aspect_ratio": { "supported": false },
+        "size": { "supported": true, "allowed": ["1K", "2K", "1024x1024", "1280x720", "2048x2048"], "default": "2K" },
+        "quality": { "supported": false },
+        "n": { "supported": false },
+        "output_format": { "supported": true, "allowed": ["png", "jpeg"] },
+        "watermark": { "supported": true, "type": "boolean" },
+        "optimize_prompt_options.mode": { "supported": true, "allowed": ["standard", "fast"] },
+        "sequential_image_generation": { "supported": false },
+        "response_format": { "supported": true, "allowed": ["url"] }
+      },
+      "request_timeout_ms": 600000,
+      "may_return_empty_image": false,
+      "known_errors": ["unsupported_4k", "unsupported_aspect_ratio", "unsupported_n", "unsupported_sequential_image_generation", "input_file_too_large"],
+      "response_format": { "url": true, "b64_json": "blocked", "note": "URL suffix may not match output_format; inspect bytes after download if MIME matters." }
+    },
+    {
+      "id": "doubao-seedream-4-0-250828",
+      "vendor": "ByteDance Doubao",
+      "status": "passthrough",
+      "document_sources": ["api/images.mdx:80", "api/images.mdx:271-290"],
+      "supported_operations": ["generate", "edit", "fuse"],
+      "reference_images": { "min": 0, "max": 14, "required": false },
+      "input_image_limits": { "same_as": "doubao-seedream-5-0-pro-260628", "max_reference_images": 14 },
+      "parameters": {
+        "aspect_ratio": { "supported": false },
+        "size": { "supported": true, "allowed": ["1K", "2K", "4K", "1024x1024", "864x1152", "1152x864", "1280x720", "720x1280", "832x1248", "1248x832", "1512x648", "2048x2048", "2304x1728", "1728x2304", "2848x1600", "1600x2848", "2496x1664", "1664x2496", "3136x1344", "4096x4096", "3520x4704", "4704x3520", "5504x3040", "3040x5504", "3328x4992", "4992x3328", "6240x2656"], "default": "2K" },
+        "quality": { "supported": false },
+        "n": { "supported": false },
+        "response_format": { "supported": true, "allowed": ["url"] }
+      },
+      "request_timeout_ms": 600000,
+      "may_return_empty_image": false,
+      "known_errors": ["provider_validation_error"],
+      "response_format": { "url": true, "b64_json": "blocked" }
+    },
+    {
+      "id": "doubao-seedream-4-5-251128",
+      "vendor": "ByteDance Doubao",
+      "status": "passthrough",
+      "document_sources": ["api/images.mdx:81", "api/images.mdx:271-290"],
+      "supported_operations": ["generate", "edit", "fuse"],
+      "reference_images": { "min": 0, "max": 14, "required": false },
+      "input_image_limits": { "same_as": "doubao-seedream-5-0-pro-260628", "max_reference_images": 14 },
+      "parameters": {
+        "aspect_ratio": { "supported": false },
+        "size": { "supported": true, "allowed": ["2K", "4K", "2048x2048", "2304x1728", "1728x2304", "2848x1600", "1600x2848", "2496x1664", "1664x2496", "3136x1344", "4096x4096", "3520x4704", "4704x3520", "5504x3040", "3040x5504", "3328x4992", "4992x3328", "6240x2656"], "default": "2K" },
+        "quality": { "supported": false },
+        "n": { "supported": false },
+        "response_format": { "supported": true, "allowed": ["url"] }
+      },
+      "request_timeout_ms": 600000,
+      "may_return_empty_image": false,
+      "known_errors": ["provider_validation_error"],
+      "response_format": { "url": true, "b64_json": "blocked" }
+    },
+    {
+      "id": "Doubao-Seedream-5.0-lite",
+      "vendor": "ByteDance Doubao",
+      "status": "passthrough",
+      "document_sources": ["api/images.mdx:83", "api/images.mdx:513-629"],
+      "supported_operations": ["generate", "edit", "fuse"],
+      "reference_images": { "min": 0, "max": 14, "required": false },
+      "input_image_limits": { "same_as": "doubao-seedream-5-0-pro-260628", "max_reference_images": 14 },
+      "parameters": {
+        "aspect_ratio": { "supported": false },
+        "size": { "supported": true, "allowed": ["2K", "3K", "2048x2048", "2304x1728", "1728x2304", "2848x1600", "1600x2848", "2496x1664", "1664x2496", "3136x1344", "3072x3072", "3456x2592", "2592x3456", "4096x2304", "2304x4096", "2496x3744", "3744x2496", "4704x2016"], "default": "2K" },
+        "quality": { "supported": false },
+        "n": { "supported": false },
+        "response_format": { "supported": true, "allowed": ["url"] }
+      },
+      "request_timeout_ms": 600000,
+      "may_return_empty_image": false,
+      "known_errors": ["provider_validation_error"],
+      "response_format": { "url": true, "b64_json": "blocked" }
+    },
+    {
+      "id": "imagen-4.0-generate-001",
+      "vendor": "Google Imagen",
+      "status": "passthrough",
+      "document_sources": ["api/images.mdx:87"],
+      "supported_operations": ["generate"],
+      "reference_images": { "min": 0, "max": 0, "required": false },
+      "input_image_limits": { "supported": false },
+      "parameters": {
+        "aspect_ratio": { "supported": true, "allowed": ["1:1", "3:4", "4:3", "9:16", "16:9"] },
+        "size": { "supported": true, "allowed": ["1K", "2K"] },
+        "quality": { "supported": false },
+        "n": { "supported": true, "min": 1, "max": 4, "default": 4 },
+        "response_format": { "supported": true, "allowed": ["url"] }
+      },
+      "request_timeout_ms": 300000,
+      "may_return_empty_image": false,
+      "known_errors": ["provider_validation_error"],
+      "response_format": { "url": true, "b64_json": "blocked" }
+    },
+    {
+      "id": "imagen-4.0-ultra-generate-001",
+      "vendor": "Google Imagen",
+      "status": "passthrough",
+      "document_sources": ["api/images.mdx:88"],
+      "supported_operations": ["generate"],
+      "reference_images": { "min": 0, "max": 0, "required": false },
+      "input_image_limits": { "supported": false },
+      "parameters": {
+        "aspect_ratio": { "supported": true, "allowed": ["1:1", "3:4", "4:3", "9:16", "16:9"] },
+        "size": { "supported": true, "allowed": ["1K", "2K"] },
+        "quality": { "supported": false },
+        "n": { "supported": true, "min": 1, "max": 4, "default": 4 },
+        "response_format": { "supported": true, "allowed": ["url"] }
+      },
+      "request_timeout_ms": 300000,
+      "may_return_empty_image": false,
+      "known_errors": ["provider_validation_error"],
+      "response_format": { "url": true, "b64_json": "blocked" }
+    },
+    {
+      "id": "imagen-4.0-fast-generate-001",
+      "vendor": "Google Imagen",
+      "status": "passthrough",
+      "document_sources": ["api/images.mdx:89"],
+      "supported_operations": ["generate"],
+      "reference_images": { "min": 0, "max": 0, "required": false },
+      "input_image_limits": { "supported": false },
+      "parameters": {
+        "aspect_ratio": { "supported": true, "allowed": ["1:1", "3:4", "4:3", "9:16", "16:9"] },
+        "size": { "supported": false },
+        "quality": { "supported": false },
+        "n": { "supported": true, "min": 1, "max": 4, "default": 4 },
+        "response_format": { "supported": true, "allowed": ["url"] }
+      },
+      "request_timeout_ms": 300000,
+      "may_return_empty_image": false,
+      "known_errors": ["provider_validation_error"],
+      "response_format": { "url": true, "b64_json": "blocked" }
+    },
+    {
+      "id": "qwen-mt-image",
+      "vendor": "Alibaba Qwen",
+      "status": "candidate",
+      "document_sources": ["api/images.mdx:709"],
+      "supported_operations": ["edit"],
+      "reference_images": { "min": 1, "max": 1, "required": true },
+      "input_image_limits": { "source": "not_registered_in_parameter_table" },
+      "parameters": {
+        "aspect_ratio": { "supported": false },
+        "size": { "supported": false },
+        "quality": { "supported": false },
+        "n": { "supported": false },
+        "response_format": { "supported": true, "allowed": ["url"] }
+      },
+      "request_timeout_ms": 300000,
+      "may_return_empty_image": false,
+      "known_errors": ["not_connected_by_skill"],
+      "response_format": { "url": true, "b64_json": "blocked" }
+    }
+  ],
+  "families": [
+    {
+      "vendor": "Zhipu",
+      "status": "passthrough",
+      "document_sources": ["api/images.mdx:10-13"],
+      "model_ids": ["glm-image", "cogview-4-250304", "cogview-4", "cogview-3-flash"],
+      "supported_operations": ["generate"],
+      "parameter_summary": "size only; no reference images."
+    },
+    {
+      "vendor": "Kuaishou Kling",
+      "status": "passthrough",
+      "document_sources": ["api/images.mdx:14-19", "api/images.mdx:713", "api/images.mdx:758"],
+      "model_ids": ["kling-v2-new", "kling-v1", "kling-v1-5", "kling-v2", "kling-v2-1", "kling-image-o1"],
+      "supported_operations": ["edit", "fuse"],
+      "parameter_summary": "aspect_ratio plus size; n 1-9 where documented; reference image requirements vary by ID."
+    },
+    {
+      "vendor": "Alibaba Qwen",
+      "status": "passthrough",
+      "document_sources": ["api/images.mdx:24-31", "api/images.mdx:642", "api/images.mdx:707", "api/images.mdx:754"],
+      "model_ids": ["qwen-image-2.0", "qwen-image-2.0-pro", "Qwen-Image", "qwen-image-max", "qwen-image-plus", "Qwen-Image-Edit", "qwen-image-edit-max", "qwen-image-edit-plus"],
+      "supported_operations": ["generate", "edit", "fuse"],
+      "parameter_summary": "size-driven models; edit/fusion reference count usually 1-3; n range varies by ID."
+    },
+    {
+      "vendor": "Alibaba Wan",
+      "status": "passthrough",
+      "document_sources": ["api/images.mdx:33-42", "api/images.mdx:643", "api/images.mdx:708", "api/images.mdx:755"],
+      "model_ids": ["wan2.6-t2i", "wan2.5-t2i-preview", "wan2.2-t2i-plus", "wan2.2-t2i-flash", "wanx2.1-t2i-plus", "wanx2.1-t2i-turbo", "wanx-v1", "wan2.6-image", "wan2.5-i2i-preview", "wanx2.1-imageedit", "wan2.7-image", "wan2.7-image-pro"],
+      "supported_operations": ["generate", "edit", "fuse"],
+      "parameter_summary": "size-driven generation and edit models; several edit IDs require reference images."
+    },
+    {
+      "vendor": "Stability AI",
+      "status": "passthrough",
+      "document_sources": ["api/images.mdx:43-48"],
+      "model_ids": ["Stable-Diffusion-3.5-Large", "Stable-Diffusion-3.5-Large-Turbo", "Stable-Diffusion-3.5-Medium", "Stable-Diffusion-3.5-Flash", "Stable-Image-Ultra", "Stable-Image-Core"],
+      "supported_operations": ["generate"],
+      "parameter_summary": "aspect_ratio only; no reference images."
+    },
+    {
+      "vendor": "OpenAI",
+      "status": "passthrough",
+      "document_sources": ["api/images.mdx:52-61", "api/images.mdx:641", "api/images.mdx:706", "api/images.mdx:753"],
+      "model_ids": ["gpt-image-1-high", "gpt-image-1-medium", "gpt-image-1-low", "gpt-image-1-mini-high", "gpt-image-1-mini-medium", "gpt-image-1-mini-low", "gpt-image-1.5-high", "gpt-image-1.5-medium", "gpt-image-1.5-low"],
+      "supported_operations": ["generate", "edit", "fuse"],
+      "parameter_summary": "size plus n; up to 16 reference images."
+    },
+    {
+      "vendor": "OpenAI",
+      "status": "passthrough",
+      "document_sources": ["api/images.mdx:62-64"],
+      "model_ids": ["dall-e-2", "dall-e-3-hd", "dall-e-3-standard"],
+      "supported_operations": ["generate"],
+      "parameter_summary": "size-driven generation; n support differs by ID."
+    },
+    {
+      "vendor": "MiniMax",
+      "status": "passthrough",
+      "document_sources": ["api/images.mdx:65-66", "api/images.mdx:710"],
+      "model_ids": ["minimax-image-01", "minimax-image-01-live"],
+      "supported_operations": ["generate", "edit", "fuse"],
+      "parameter_summary": "aspect_ratio; n 1-9."
+    },
+    {
+      "vendor": "Flux",
+      "status": "passthrough",
+      "document_sources": ["api/images.mdx:67-70"],
+      "model_ids": ["flux.2-klein-4b", "flux.2-max", "flux.2-flex", "flux.2-pro"],
+      "supported_operations": ["edit", "fuse"],
+      "parameter_summary": "aspect_ratio; reference image count 1-4 or 1-8 depending on ID."
+    },
+    {
+      "vendor": "Luma AI",
+      "status": "passthrough",
+      "document_sources": ["api/images.mdx:73-76", "api/images.mdx:716", "api/images.mdx:760"],
+      "model_ids": ["uni-1", "uni-1-max", "uni-1-edit", "uni-1-max-edit"],
+      "supported_operations": ["generate", "edit", "fuse"],
+      "parameter_summary": "aspect_ratio; edit IDs require one reference image."
+    },
+    {
+      "vendor": "Reve",
+      "status": "passthrough",
+      "document_sources": ["api/images.mdx:77-79"],
+      "model_ids": ["reve-create-latest", "reve-edit-latest", "reve-remix-latest"],
+      "supported_operations": ["generate", "edit", "fuse"],
+      "parameter_summary": "aspect_ratio; create/edit/remix split by ID."
+    },
+    {
+      "vendor": "Vidu",
+      "status": "candidate",
+      "document_sources": ["api/images.mdx:71-72"],
+      "model_ids": ["viduq1", "viduq2"],
+      "supported_operations": ["edit", "fuse"],
+      "parameter_summary": "Listed in image table but behavior should be confirmed before image Skill support."
+    }
+  ]
+}

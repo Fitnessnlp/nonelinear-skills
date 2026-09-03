@@ -1,8 +1,8 @@
 ---
 name: nonelinear-image
-description: Generate images, edit one image, or fuse multiple reference images through the NoneLinear image API, including Doubao Seedream 5 Pro. Use when a user asks a shell-capable agent to create, draw, render, restyle, modify, combine, or blend images with NoneLinear, including requests that specify an image model, local image paths, public reference image URLs, aspect ratio, size, count, or response format.
+description: Generate images, create transparent-background PNGs, edit one image, or fuse multiple reference images through the NoneLinear image API, including Doubao Seedream 5 Pro. Use when a user asks a shell-capable agent to create, draw, render, restyle, modify, combine, or blend images with NoneLinear, including requests that specify an image model, local image paths, public reference image URLs, aspect ratio, size, count, background, or response format.
 metadata:
-  version: "0.2.0"
+  version: "0.3.0"
 ---
 
 # NoneLinear Image
@@ -21,8 +21,10 @@ NoneLinear request.
    - `fuse`: at least two local paths or public HTTPS reference image URLs.
 3. Extract the prompt and optional model, aspect ratio, size, quality, and count.
 4. Default the model to `gemini-2.5-flash-image`. Always request URL output.
-5. Read [references/models.md](references/models.md) before selecting a non-default model or
-   adding model-specific parameters. Never invent a model ID or unsupported parameter.
+5. Read [references/models.md](references/models.md) and, when exact limits matter,
+   [references/model-capabilities.json](references/model-capabilities.json) before selecting a
+   non-default model or adding model-specific parameters. Never invent a model ID or unsupported
+   parameter.
 6. Locate `scripts/generate-image.mjs` relative to this `SKILL.md` and invoke it with Node.js
    18 or newer. In Claude Code, `${CLAUDE_SKILL_DIR}` is the skill directory. In other hosts,
    use the absolute directory from which this skill was loaded.
@@ -104,6 +106,18 @@ node "<skill-directory>/scripts/generate-image.mjs" \
   --quality "high"
 ```
 
+Generate a transparent PNG with `gpt-image-2`:
+
+```bash
+node "<skill-directory>/scripts/generate-image.mjs" \
+  --model "gpt-image-2" \
+  --prompt "一瓶高端植物精华液概念瓶，主体完整，透明背景，不要场景、地面、底座、投影和倒影" \
+  --size "1024x1024" \
+  --quality "high" \
+  --background "transparent" \
+  --output-format "png"
+```
+
 Use Seedream 5 Pro for text-to-image:
 
 ```bash
@@ -128,7 +142,8 @@ Supported script arguments:
 - `--quality <low|medium|high|auto>`: optional and valid only for `gpt-image-2`; its API default is `auto`.
 - `--n <count>`: optional integer from 1 through 10; omit when the model does not support it.
 - `--response-format <url>`: optional compatibility argument; only `url` is accepted.
-- `--output-format <png|jpeg>`: Seedream 5 Pro only.
+- `--output-format <png|jpeg|webp>`: model-specific; read the capability registry before use.
+- `--background <auto|opaque|transparent>`: `gpt-image-2` generation only.
 - `--watermark <true|false>`: Seedream 5 Pro only.
 - `--optimize-prompt-mode <standard|fast>`: Seedream 5 Pro only.
 
@@ -156,6 +171,11 @@ Keep image bytes outside the agent context:
 For `gpt-image-2`, use `size`, not `aspect_ratio`. Higher `quality` usually increases latency,
 output tokens, and cost. Read [references/models.md](references/models.md) for complete size
 constraints before choosing a custom resolution.
+
+For a transparent image, use `gpt-image-2` with `--background transparent` and
+`--output-format png` or `webp`. The prompt must also say that the background is transparent.
+Exclude the scene, floor, base, reflection, and shadow when the user wants a clean cutout. This
+Skill currently exposes transparent backgrounds only for text-to-image generation.
 
 For `doubao-seedream-5-0-pro-260628`, use `size`, never `aspect_ratio` or `n`. It supports
 text-to-image, one-image editing, and fusion with up to ten references. Preserve `<point>` and

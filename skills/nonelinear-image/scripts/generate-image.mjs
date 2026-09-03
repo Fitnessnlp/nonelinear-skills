@@ -3,26 +3,37 @@
 import path from "node:path";
 import { realpathSync } from "node:fs";
 import { readFile } from "node:fs/promises";
+import { createRequire } from "node:module";
 import { isIP } from "node:net";
 import { fileURLToPath } from "node:url";
 
-export const API_ENDPOINT = "https://api.nonelinear.com/v1/images/generations";
-export const UPLOAD_ENDPOINT = "https://nonelinear.com/api/upload-file";
-export const DEFAULT_MODEL = "gemini-2.5-flash-image";
-export const DEFAULT_TIMEOUT_MS = 300_000;
+const require = createRequire(import.meta.url);
+
+export const MODEL_CAPABILITY_REGISTRY = require("../references/model-capabilities.json");
+export const MODEL_CAPABILITY_REGISTRY_VERSION = MODEL_CAPABILITY_REGISTRY.version;
+const MODEL_CAPABILITY_BY_ID = new Map(
+  MODEL_CAPABILITY_REGISTRY.models.map((capability) => [capability.id, capability])
+);
+const FAMILY_CAPABILITY_BY_ID = new Map();
+for (const family of MODEL_CAPABILITY_REGISTRY.families ?? []) {
+  for (const id of family.model_ids ?? []) {
+    FAMILY_CAPABILITY_BY_ID.set(id, family);
+  }
+}
+
+export const API_ENDPOINT = MODEL_CAPABILITY_REGISTRY.endpoints.image_generation;
+export const UPLOAD_ENDPOINT = MODEL_CAPABILITY_REGISTRY.endpoints.local_upload;
+export const DEFAULT_MODEL = MODEL_CAPABILITY_REGISTRY.defaults.model;
+export const DEFAULT_TIMEOUT_MS = MODEL_CAPABILITY_REGISTRY.defaults.request_timeout_ms;
 export const SEEDREAM_5_MODEL = "doubao-seedream-5-0-pro-260628";
-export const SEEDREAM_5_TIMEOUT_MS = 600_000;
+export const SEEDREAM_5_TIMEOUT_MS =
+  modelCapabilityFor(SEEDREAM_5_MODEL)?.request_timeout_ms ?? 600_000;
 
 const OPERATIONS = new Set(["generate", "edit", "fuse"]);
-const GPT_IMAGE_2_QUALITIES = new Set(["low", "medium", "high", "auto"]);
-const SEEDREAM_5_SIZES = new Set(["1K", "2K", "1024x1024", "1280x720", "2048x2048"]);
-const SEEDREAM_5_OUTPUT_FORMATS = new Set(["png", "jpeg"]);
-const SEEDREAM_5_PROMPT_MODES = new Set(["standard", "fast"]);
-const SEEDREAM_5_MAX_INPUT_BYTES = 10 * 1024 * 1024;
 const MODEL_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:/-]{0,199}$/;
 const ASPECT_RATIO_PATTERN = /^(?:auto|[1-9]\d*:[1-9]\d*)$/;
 const MAX_REFERENCE_IMAGES = 16;
-const IMAGE_SUFFIXES = new Set([".bmp", ".gif", ".jpeg", ".jpg", ".png", ".tif", ".tiff", ".webp"]);
+const IMAGE_SUFFIXES = new Set(MODEL_CAPABILITY_REGISTRY.local_upload.allowed_file_extensions);
 
 export class SkillError extends Error {
   constructor(code, message) {
@@ -68,6 +79,10 @@ export function parseArguments(argv) {
   if (!MODEL_PATTERN.test(model)) {
     throw new SkillError("invalid_arguments", "--model contains unsupported characters.");
   }
+  const modelCapability = modelCapabilityFor(model);
+  if (modelCapability?.status === "candidate") {
+    throw new SkillError("not_implemented", `${model} is documented but not connected by this Skill.`);
+  }
 
   const responseFormat = (values.responseFormat ?? "url").trim();
   if (responseFormat !== "url") {
@@ -78,77 +93,57 @@ export function parseArguments(argv) {
   if (aspectRatio && !ASPECT_RATIO_PATTERN.test(aspectRatio)) {
     throw new SkillError("invalid_arguments", "--aspect-ratio must be a ratio such as 1:1 or 16:9.");
   }
-  if (aspectRatio && model === "gpt-image-2") {
-    throw new SkillError("invalid_arguments", "gpt-image-2 uses --size instead of --aspect-ratio.");
-  }
-  if (aspectRatio && model === SEEDREAM_5_MODEL) {
-    throw new SkillError(
-      "invalid_arguments",
-      "doubao-seedream-5-0-pro-260628 uses --size or prompt composition instead of --aspect-ratio."
-    );
+  if (aspectRatio) {
+    validateRegistryParameterValue(modelCapability, model, "aspect_ratio", aspectRatio, "--aspect-ratio");
   }
 
   const size = normalizeOptional(values.size);
   if (size && (size.length > 64 || /[\u0000-\u001f\u007f]/.test(size))) {
     throw new SkillError("invalid_arguments", "--size is invalid.");
   }
-  if (size && model === "gpt-image-2") {
-    validateGptImage2Size(size);
-  }
-  if (size && model === SEEDREAM_5_MODEL && !SEEDREAM_5_SIZES.has(size)) {
-    throw new SkillError(
-      "invalid_arguments",
-      "doubao-seedream-5-0-pro-260628 --size must be 1K, 2K, 1024x1024, 1280x720, or 2048x2048."
-    );
+  if (size) {
+    if (model === "gpt-image-2") {
+      validateGptImage2Size(size);
+    } else {
+      validateRegistryParameterValue(modelCapability, model, "size", size, "--size");
+    }
   }
 
   const quality = normalizeOptional(values.quality);
-  if (quality && !GPT_IMAGE_2_QUALITIES.has(quality)) {
-    throw new SkillError("invalid_arguments", "--quality must be low, medium, high, or auto.");
-  }
-  if (quality && model !== "gpt-image-2") {
-    throw new SkillError("invalid_arguments", "--quality is supported only by gpt-image-2.");
+  if (quality) {
+    validateRegistryParameterValue(modelCapability, model, "quality", quality, "--quality");
   }
 
   let n;
   if (values.n !== undefined) {
     n = Number(values.n);
-    if (!Number.isInteger(n) || n < 1 || n > 10) {
-      throw new SkillError("invalid_arguments", "--n must be an integer from 1 through 10.");
-    }
-    if (model === SEEDREAM_5_MODEL) {
-      throw new SkillError("invalid_arguments", "doubao-seedream-5-0-pro-260628 does not support --n.");
-    }
+    validateRegistryIntegerParameter(modelCapability, model, "n", n, "--n");
   }
 
   const outputFormat = normalizeOptional(values.outputFormat)?.toLowerCase();
-  if (outputFormat && model !== SEEDREAM_5_MODEL) {
-    throw new SkillError(
-      "invalid_arguments",
-      "--output-format is supported only by doubao-seedream-5-0-pro-260628."
-    );
+  if (outputFormat) {
+    validateRegistryParameterValue(modelCapability, model, "output_format", outputFormat, "--output-format");
   }
-  if (outputFormat && !SEEDREAM_5_OUTPUT_FORMATS.has(outputFormat)) {
-    throw new SkillError("invalid_arguments", "--output-format must be png or jpeg.");
+
+  const background = normalizeOptional(values.background)?.toLowerCase();
+  if (background) {
+    validateRegistryParameterValue(modelCapability, model, "background", background, "--background");
   }
 
   const watermark = parseOptionalBoolean(values.watermark, "--watermark");
-  if (watermark !== undefined && model !== SEEDREAM_5_MODEL) {
-    throw new SkillError(
-      "invalid_arguments",
-      "--watermark is supported by this Skill only for doubao-seedream-5-0-pro-260628."
-    );
+  if (watermark !== undefined) {
+    validateRegistryBooleanParameter(modelCapability, model, "watermark", "--watermark");
   }
 
   const optimizePromptMode = normalizeOptional(values.optimizePromptMode)?.toLowerCase();
-  if (optimizePromptMode && model !== SEEDREAM_5_MODEL) {
-    throw new SkillError(
-      "invalid_arguments",
-      "--optimize-prompt-mode is supported only by doubao-seedream-5-0-pro-260628."
+  if (optimizePromptMode) {
+    validateRegistryParameterValue(
+      modelCapability,
+      model,
+      "optimize_prompt_options.mode",
+      optimizePromptMode,
+      "--optimize-prompt-mode"
     );
-  }
-  if (optimizePromptMode && !SEEDREAM_5_PROMPT_MODES.has(optimizePromptMode)) {
-    throw new SkillError("invalid_arguments", "--optimize-prompt-mode must be standard or fast.");
   }
 
   const references = values.references;
@@ -160,7 +155,17 @@ export function parseArguments(argv) {
   if (!OPERATIONS.has(operation)) {
     throw new SkillError("invalid_arguments", "--operation must be generate, edit, or fuse.");
   }
+  validateModelOperation(modelCapability, model, operation, references.length);
   validateOperationImages(operation, references.length);
+  if (background && operation !== "generate") {
+    throw new SkillError("invalid_arguments", "--background is currently supported only for generation.");
+  }
+  if (background === "transparent" && !["png", "webp"].includes(outputFormat)) {
+    throw new SkillError(
+      "invalid_arguments",
+      "--background transparent requires --output-format png or webp."
+    );
+  }
 
   return {
     operation,
@@ -173,6 +178,7 @@ export function parseArguments(argv) {
     n,
     responseFormat,
     outputFormat,
+    background,
     watermark,
     optimizePromptMode
   };
@@ -231,6 +237,7 @@ export async function generateImage(options, dependencies = {}) {
   if (options.quality) body.quality = options.quality;
   if (options.n !== undefined) body.n = options.n;
   if (options.outputFormat) body.output_format = options.outputFormat;
+  if (options.background) body.background = options.background;
   if (options.watermark !== undefined) body.watermark = options.watermark;
   if (options.optimizePromptMode) {
     body.optimize_prompt_options = { mode: options.optimizePromptMode };
@@ -346,6 +353,7 @@ function optionKey(name) {
     "--n": "n",
     "--response-format": "responseFormat",
     "--output-format": "outputFormat",
+    "--background": "background",
     "--watermark": "watermark",
     "--optimize-prompt-mode": "optimizePromptMode"
   };
@@ -436,10 +444,11 @@ async function uploadLocalImage(reference, apiKey, fetchImpl, readFileImpl, time
   } catch {
     throw new SkillError("file_read_error", "Unable to read a local reference image.");
   }
-  if (model === SEEDREAM_5_MODEL && bytes.length > SEEDREAM_5_MAX_INPUT_BYTES) {
+  const maxInputBytes = modelCapabilityFor(model)?.input_image_limits?.max_file_size_bytes;
+  if (maxInputBytes && bytes.length > maxInputBytes) {
     throw new SkillError(
       "invalid_image",
-      "Each local reference image for doubao-seedream-5-0-pro-260628 must not exceed 10 MB."
+      `Each local reference image for ${model} must not exceed ${Math.round(maxInputBytes / 1024 / 1024)} MB.`
     );
   }
 
@@ -484,14 +493,102 @@ async function uploadLocalImage(reference, apiKey, fetchImpl, readFileImpl, time
 }
 
 function maxReferenceImagesForModel(model) {
-  if (model === "gemini-2.5-flash-image") return 3;
-  if (model === "gemini-3-pro-image-preview" || model === "gemini-3.1-flash-image-preview") return 14;
-  if (model === SEEDREAM_5_MODEL) return 10;
+  const capability = modelCapabilityFor(model);
+  if (Number.isInteger(capability?.reference_images?.max)) {
+    return capability.reference_images.max;
+  }
   return MAX_REFERENCE_IMAGES;
 }
 
 export function requestTimeoutMsForModel(model) {
-  return model === SEEDREAM_5_MODEL ? SEEDREAM_5_TIMEOUT_MS : DEFAULT_TIMEOUT_MS;
+  return modelCapabilityFor(model)?.request_timeout_ms ?? DEFAULT_TIMEOUT_MS;
+}
+
+export function modelCapabilityFor(model) {
+  return MODEL_CAPABILITY_BY_ID.get(model) ?? familyCapabilityFor(model);
+}
+
+function familyCapabilityFor(model) {
+  const family = FAMILY_CAPABILITY_BY_ID.get(model);
+  if (!family) return undefined;
+  return {
+    id: model,
+    registry_scope: "family",
+    vendor: family.vendor,
+    status: family.status,
+    document_sources: family.document_sources,
+    supported_operations: family.supported_operations,
+    reference_images: { min: 0, max: MAX_REFERENCE_IMAGES, required: false },
+    input_image_limits: { source: "provider_validated" },
+    parameters: {},
+    request_timeout_ms: DEFAULT_TIMEOUT_MS,
+    may_return_empty_image: false,
+    known_errors: ["provider_validation_error"],
+    response_format: { url: true, b64_json: "blocked" }
+  };
+}
+
+function validateRegistryParameterValue(capability, model, parameterName, value, optionName) {
+  if (!capability) return;
+  if (!Object.hasOwn(capability.parameters ?? {}, parameterName)) {
+    if (capability.registry_scope === "family") return;
+    throw new SkillError("invalid_arguments", `${model} does not support ${optionName}.`);
+  }
+  const parameter = capability.parameters?.[parameterName];
+  if (!parameter?.supported) {
+    throw new SkillError("invalid_arguments", `${model} does not support ${optionName}.`);
+  }
+  if (Array.isArray(parameter.allowed) && !parameter.allowed.includes(value)) {
+    throw new SkillError(
+      "invalid_arguments",
+      `${model} ${optionName} must be one of: ${parameter.allowed.join(", ")}.`
+    );
+  }
+}
+
+function validateRegistryIntegerParameter(capability, model, parameterName, value, optionName) {
+  const parameter = capability?.parameters?.[parameterName];
+  if (!Number.isInteger(value)) {
+    throw new SkillError("invalid_arguments", `${optionName} must be an integer.`);
+  }
+  if (capability) {
+    if (!Object.hasOwn(capability.parameters ?? {}, parameterName)) {
+      if (capability.registry_scope === "family") {
+        return;
+      }
+      throw new SkillError("invalid_arguments", `${model} does not support ${optionName}.`);
+    }
+    if (!parameter?.supported) {
+      throw new SkillError("invalid_arguments", `${model} does not support ${optionName}.`);
+    }
+  }
+  const min = parameter?.min ?? 1;
+  const max = parameter?.max ?? 10;
+  if (value < min || value > max) {
+    throw new SkillError("invalid_arguments", `${model} ${optionName} must be an integer from ${min} through ${max}.`);
+  }
+}
+
+function validateRegistryBooleanParameter(capability, model, parameterName, optionName) {
+  if (!capability) return;
+  if (!Object.hasOwn(capability.parameters ?? {}, parameterName)) {
+    if (capability.registry_scope === "family") return;
+    throw new SkillError("invalid_arguments", `${model} does not support ${optionName}.`);
+  }
+  if (!capability.parameters?.[parameterName]?.supported) {
+    throw new SkillError("invalid_arguments", `${model} does not support ${optionName}.`);
+  }
+}
+
+function validateModelOperation(capability, model, operation, referenceCount) {
+  if (!capability) return;
+  if (!capability.supported_operations?.includes(operation)) {
+    throw new SkillError("invalid_arguments", `${model} does not support the ${operation} operation.`);
+  }
+  const minimum = capability.reference_images?.min;
+  if (Number.isInteger(minimum) && referenceCount < minimum) {
+    throw new SkillError("invalid_arguments", `${model} requires at least ${minimum} reference image.`);
+  }
 }
 
 function validateGptImage2Size(size) {

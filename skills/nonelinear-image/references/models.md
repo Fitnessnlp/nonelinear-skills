@@ -1,112 +1,98 @@
-# Image Models
+# Image Model Capabilities
 
-Use the exact, case-sensitive model IDs below. The gateway can add models over time, but this
-Skill must not invent IDs. If the user explicitly provides another model ID, pass it through and
-let the API validate it; do not silently substitute a model.
+Use [model-capabilities.json](model-capabilities.json) as the source of truth for model IDs,
+status, supported operations, reference image limits, parameter values, request timeouts, known
+empty-image behavior, and response handling.
 
-## Recommended Models
+## Status Levels
 
-| Model ID | Reference images | Parameters | Documented values |
-| --- | --- | --- | --- |
-| `gemini-2.5-flash-image` | 0-3 | `aspect_ratio` | `1:1`, `2:3`, `3:2`, `3:4`, `4:3`, `4:5`, `5:4`, `9:16`, `16:9`, `21:9` |
-| `gemini-3.1-flash-image-preview` | 0-14 | `aspect_ratio`, `size` | ratio also supports `1:4`, `1:8`, `4:1`, `8:1`; size: `512`, `1K`, `2K`, `4K` |
-| `gemini-3-pro-image-preview` | 0-14 | `aspect_ratio`, `size` | standard ratios; size: `1K`, `2K`, `4K` |
-| `gpt-image-2` | 0-16 | `size`, `quality`, `n` | custom size or `auto`; quality: `low`, `medium`, `high`, `auto`; `n`: 1-10 |
-| `doubao-seedream-5-0-pro-260628` | 0-10 | `size`, `output_format`, `watermark`, `optimize_prompt_options` | size: `1K`, `2K`, `1024x1024`, `1280x720`, `2048x2048`; format: `png`, `jpeg`; prompt mode: `standard`, `fast` |
-| `imagen-4.0-generate-001` | none | `aspect_ratio`, `size`, `n` | ratio: `1:1`, `3:4`, `4:3`, `9:16`, `16:9`; size: `1K`, `2K`; `n`: 1-4 |
-| `imagen-4.0-ultra-generate-001` | none | `aspect_ratio`, `size`, `n` | ratio: `1:1`, `3:4`, `4:3`, `9:16`, `16:9`; size: `1K`, `2K`; `n`: 1-4 |
-| `imagen-4.0-fast-generate-001` | none | `aspect_ratio`, `n` | ratio: `1:1`, `3:4`, `4:3`, `9:16`, `16:9`; `n`: 1-4 |
+| Status | Meaning |
+| --- | --- |
+| `candidate` | Documented or mentioned, but not connected by this Skill. |
+| `passthrough` | The Skill can pass the model ID with generic safety checks, but lacks complete model-specific validation. |
+| `implemented` | The Skill has model-specific parameter mapping, limits, and error handling. |
+| `live_verified` | A direct real API request has passed. |
+| `host_verified` | A real host Agent end-to-end flow has passed. |
 
-For `gemini-2.5-flash-image`, omit `size`; it is not documented for that model. Its default
-aspect ratio is `1:1`.
+## Current Implemented Models
 
-## gpt-image-2 Size and Quality
+| Model ID | Vendor | Status | Operations | Reference Images | Parameters |
+| --- | --- | --- | --- | --- | --- |
+| `gemini-2.5-flash-image` | Google | `host_verified` | generate, edit, fuse | 0-3 | `aspect_ratio`; URL output only |
+| `gpt-image-2` | OpenAI | `implemented` | generate, edit, fuse | 0-16 | `size`, `quality`, `n`, `background`, `output_format`; URL output only |
+| `doubao-seedream-5-0-pro-260628` | ByteDance Doubao | `implemented` | generate, edit, fuse | 0-10 | `size`, `output_format`, `watermark`, `optimize_prompt_options.mode`; URL output only |
 
-Use `size` rather than `aspect_ratio`. `size` accepts `auto` or any `WIDTHxHEIGHT` resolution
-that satisfies every constraint:
+Read the registry before selecting a non-default model or adding model-specific parameters.
+Never invent model IDs, parameter names, or unsupported values.
 
-- Maximum edge: 3840 pixels.
-- Width and height: both multiples of 16.
-- Long-edge to short-edge ratio: at most 3:1.
-- Total pixels: 655,360 through 8,294,400.
+## gpt-image-2
 
-Common sizes:
+Use `size`, not `aspect_ratio`.
 
-- `1024x1024`: square.
-- `1536x1024`: landscape.
-- `1024x1536`: portrait.
-- `2048x2048`: 2K square.
-- `2048x1152`: 2K landscape.
-- `3840x2160`: 4K landscape.
-- `2160x3840`: 4K portrait.
-- `auto`: API default.
+Documented sizes:
 
-`quality` is exclusive to `gpt-image-2`:
+- `1024x1024`, `832x1248`, `1248x832`, `864x1184`, `1184x864`
+- `896x1152`, `1152x896`, `768x1344`, `1344x768`
+- `1536x1024`, `1024x1536`, `1792x1024`, `1024x1792`
+- `2048x2048`, `auto`
 
-- `low`: fastest; drafts and rapid iteration.
-- `medium`: balance quality, latency, and cost.
-- `high`: final-quality rendering.
-- `auto`: model-selected and the API default.
+The docs also state that custom `WIDTHxHEIGHT` values are valid when all constraints hold:
 
-Higher quality usually increases latency, output tokens, and cost. Omit `quality` for every
-other model.
+- maximum edge: 3840 px
+- width and height: multiples of 16
+- long-edge to short-edge ratio: at most 3:1
+- total pixels: 655,360 through 8,294,400
 
-## Doubao Seedream 5 Pro
+`quality` is only valid for `gpt-image-2`: `low`, `medium`, `high`, or `auto`. Higher quality
+usually increases latency, output tokens, and cost. `n` supports 1-10.
 
-Use the exact ID `doubao-seedream-5-0-pro-260628`. It supports text-to-image, single-image
-editing, and multi-image fusion with at most ten references.
+For transparent text-to-image output, use `background=transparent` with `output_format=png` or
+`webp`. Also state "transparent background" in the prompt and exclude the scene, floor, base,
+reflection, and shadow when those elements are unwanted. The Skill currently exposes this option
+only for `generate`; transparent editing and fusion require separate verification.
 
-- `size`: `1K`, `2K`, `1024x1024`, `1280x720`, or `2048x2048`; default is `2K`.
-- `output_format`: `png` or `jpeg`.
-- `watermark`: use `false` when the user requests no watermark.
-- `optimize_prompt_options.mode`: `standard` for quality/completeness or `fast` for previews.
-- Do not send `aspect_ratio`, `n`, `quality`, or `sequential_image_generation`.
-- Express orientation with a pixel size or in the prompt.
-- `<point>x y</point>` can identify a single edit location in the prompt.
-- `<bbox>x1 y1 x2 y2</bbox>` can identify a region in a reference image.
+## Google Gemini Image Models
 
-Local reference files must be jpeg, png, webp, bmp, tiff, or gif and no larger than 10 MB.
-The provider also requires width and height greater than 14 pixels, aspect ratio between 1:16
-and 16:1, and total dimensions no greater than 6000 by 6000 pixels. Public URL inputs are
-validated by the provider.
+`gemini-2.5-flash-image` supports `aspect_ratio` only. Do not send `size`, `quality`, or `n`.
 
-## Other Documented Generation IDs
+`gemini-3.1-flash-image-preview` and `gemini-3-pro-image-preview` are registered as
+`passthrough`: the Skill records documented `aspect_ratio`, `size`, reference-count limits, and
+Gemini empty-image behavior, but they still need direct and host verification before promotion.
 
-These IDs are documented by NoneLinear, but parameter support varies. Prefer the recommended
-table unless the user requests one of these explicitly:
+Gemini can return HTTP success without image data. Treat success as valid only when a response
+item contains a non-empty `url`. Empty `data`, `IMAGE_RECITATION`, `NO_IMAGE`, or text-only
+success maps to `no_image_output`. Do not auto-retry.
 
-- `glm-image`, `cogview-4-250304`, `cogview-4`, `cogview-3-flash`
-- `Kolors`, `step-1x-medium`, `step-2x-large`
-- `qwen-image-2.0`, `qwen-image-2.0-pro`, `Qwen-Image`, `qwen-image-max`, `qwen-image-plus`
-- `z-image-turbo`, `wan2.6-t2i`, `wan2.5-t2i-preview`, `wan2.2-t2i-plus`,
-  `wan2.2-t2i-flash`, `wanx2.1-t2i-plus`, `wanx2.1-t2i-turbo`
-- `Stable-Diffusion-3.5-Large`, `Stable-Diffusion-3.5-Large-Turbo`,
-  `Stable-Diffusion-3.5-Medium`, `Stable-Diffusion-3.5-Flash`, `Stable-Image-Ultra`,
-  `Stable-Image-Core`
-- `gpt-image-1-high`, `gpt-image-1-medium`, `gpt-image-1-low`,
-  `gpt-image-1-mini-high`, `gpt-image-1-mini-medium`, `gpt-image-1-mini-low`,
-  `gpt-image-1.5-high`, `gpt-image-1.5-medium`, `gpt-image-1.5-low`
-- `dall-e-2`, `dall-e-3-hd`, `dall-e-3-standard`
-- `minimax-image-01`, `minimax-image-01-live`, `reve-create-latest`
-- `doubao-seedream-4-0-250828`, `doubao-seedream-4-5-251128`,
-  `Doubao-Seedream-5.0-lite`
+## Doubao Seedream
 
-## Editing and Fusion IDs
+`doubao-seedream-5-0-pro-260628` supports text-to-image, single-image editing, and multi-image
+fusion. Use `size`, not `aspect_ratio`; do not send `n` or `sequential_image_generation`.
 
-The following documented families accept reference images. Input limits and optional parameters
-vary, so use the main NoneLinear model table when selecting a non-recommended model:
+Valid Seedream 5 Pro values:
 
-- Gemini: `gemini-2.5-flash-image`, `gemini-3-pro-image-preview`,
-  `gemini-3.1-flash-image-preview`
-- OpenAI: `gpt-image-1-*`, `gpt-image-1-mini-*`, `gpt-image-1.5-*`, `gpt-image-2`
-- Qwen: `Qwen-Image-Edit`, `qwen-image-edit-max`, `qwen-image-edit-plus`
-- Wan: `wan2.7-image`, `wan2.7-image-pro`, `wan2.6-image`, `wan2.5-i2i-preview`,
-  `wanx2.1-imageedit`
-- Kling: `kling-image-o1`, `kling-v2-new`, `kling-v2-1`, `kling-v2`, `kling-v1-5`, `kling-v1`
-- Flux: `flux.2-klein-4b`, `flux.2-max`, `flux.2-flex`, `flux.2-pro`
-- Doubao: `doubao-seedream-5-0-pro-260628` (0-10 references)
-- Other documented edit models: `step-1x-edit`, `minimax-image-01`,
-  `minimax-image-01-live`, `reve-edit-latest`, `reve-remix-latest`
+- `size`: `1K`, `2K`, `1024x1024`, `1280x720`, `2048x2048`
+- `output_format`: `png`, `jpeg`
+- `watermark`: boolean
+- `optimize_prompt_options.mode`: `standard`, `fast`
 
-Do not use edit-only models for a `generate` operation. `reve-edit-latest` is single-image edit;
-`reve-remix-latest` is multi-image fusion.
+Input image limits for Seedream 5 Pro:
+
+- formats: jpeg, png, webp, bmp, tiff, gif
+- max local file size before upload: 10 MB
+- width and height: greater than 14 px
+- aspect ratio: 1:16 through 16:1
+- total dimensions: no greater than 6000x6000 px
+- reference images: at most 10
+
+Preserve `<point>` and `<bbox>` tags in prompts. The returned URL suffix may not match
+`output_format`; verify downloaded bytes when MIME type matters.
+
+## Passthrough and Candidate Models
+
+The registry also tracks documented model families from `api/images.mdx`, including Zhipu,
+Kling, Qwen, Wan, Stability, OpenAI image-1/1.5, DALL-E, MiniMax, Flux, Luma, Reve, Imagen,
+Seedream 4/4.5/Lite, and Vidu.
+
+Use `passthrough` models only when the user explicitly requests them or when the registry has
+enough documented constraints for the requested operation. Use `candidate` models only for
+planning or capability discussion; the script returns `not_implemented` for exact candidate IDs.
