@@ -43,8 +43,9 @@ The docs also state that custom `WIDTHxHEIGHT` values are valid when all constra
 - long-edge to short-edge ratio: at most 3:1
 - total pixels: 655,360 through 8,294,400
 
-`quality` is only valid for `gpt-image-2`: `low`, `medium`, `high`, or `auto`. Higher quality
-usually increases latency, output tokens, and cost. `n` supports 1-10.
+`quality` is only valid for `gpt-image-2`: `low`, `medium`, `high`, or `auto`. The bundled script
+defaults to `low`; higher quality usually increases latency, output tokens, and cost. `n` supports
+1-10.
 
 For transparent text-to-image output, use `background=transparent` with `output_format=png` or
 `webp`. Also state "transparent background" in the prompt and exclude the scene, floor, base,

@@ -18,15 +18,15 @@ Image request fields:
 | `response_format` | string | fixed | Always `url`; base64 output is disabled by this Skill. |
 | `aspect_ratio` | string | no | Include only for models that support it. |
 | `size` | string | no | Include only for models that support it. |
-| `quality` | string | no | `gpt-image-2` only: `low`, `medium`, `high`, or `auto`. |
+| `quality` | string | no | `gpt-image-2` only: `low`, `medium`, `high`, or `auto`; the bundled script defaults to `low`. |
 | `n` | integer | no | Include only for models that support it. |
 | `output_format` | string | no | `gpt-image-2`: `png`, `jpeg`, or `webp`; Seedream 5 Pro: `png` or `jpeg`. |
 | `background` | string | no | `gpt-image-2` generation only: `auto`, `opaque`, or `transparent`. |
 | `watermark` | boolean | no | Seedream 5 Pro only in this Skill. |
 | `optimize_prompt_options` | object | no | Seedream 5 Pro only: `{ "mode": "standard" }` or `fast`. |
 
-The bundled script intentionally does not accept an endpoint option, arbitrary headers, an API
-key argument, or an arbitrary JSON body.
+The bundled script intentionally does not accept an endpoint option, arbitrary headers, or an
+arbitrary JSON body. It accepts `--api-key` for a user-provided key used by the current invocation.
 
 For a transparent `gpt-image-2` result, set `background=transparent`, use PNG or WebP output,
 and explicitly request a transparent background in the prompt. Exclude floors, shadows,
@@ -100,7 +100,7 @@ from the URL suffix.
 
 | Code | Meaning |
 | --- | --- |
-| `missing_api_key` | No permitted credential was found in the process environment. |
+| `missing_api_key` | No credential was supplied through `--api-key` or a supported environment variable. |
 | `invalid_arguments` | A required argument is missing or an option is malformed. |
 | `invalid_model` | The API rejected or could not find the model ID. |
 | `not_implemented` | The model is documented or mentioned, but this Skill has not connected it. |

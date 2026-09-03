@@ -109,9 +109,14 @@ export function parseArguments(argv) {
     }
   }
 
-  const quality = normalizeOptional(values.quality);
+  const quality = normalizeOptional(values.quality) ?? (model === "gpt-image-2" ? "low" : undefined);
   if (quality) {
     validateRegistryParameterValue(modelCapability, model, "quality", quality, "--quality");
+  }
+
+  const apiKey = normalizeOptional(values.apiKey);
+  if (apiKey && (apiKey.length > 4096 || /[\u0000-\u001f\u007f]/.test(apiKey))) {
+    throw new SkillError("invalid_arguments", "--api-key is invalid.");
   }
 
   let n;
@@ -180,7 +185,8 @@ export function parseArguments(argv) {
     outputFormat,
     background,
     watermark,
-    optimizePromptMode
+    optimizePromptMode,
+    ...(apiKey ? { apiKey } : {})
   };
 }
 
@@ -205,12 +211,12 @@ export async function generateImage(options, dependencies = {}) {
   const fetchImpl = dependencies.fetchImpl ?? globalThis.fetch;
   const readFileImpl = dependencies.readFileImpl ?? readFile;
   const timeoutMs = dependencies.timeoutMs ?? requestTimeoutMsForModel(options.model);
-  const apiKey = resolveApiKey(env);
+  const apiKey = options.apiKey ?? resolveApiKey(env);
 
   if (!apiKey) {
     throw new SkillError(
       "missing_api_key",
-      "No NoneLinear API key is configured in the process environment."
+      "No NoneLinear API key was provided."
     );
   }
   if (typeof fetchImpl !== "function") {
@@ -350,6 +356,7 @@ function optionKey(name) {
     "--aspect-ratio": "aspectRatio",
     "--size": "size",
     "--quality": "quality",
+    "--api-key": "apiKey",
     "--n": "n",
     "--response-format": "responseFormat",
     "--output-format": "outputFormat",

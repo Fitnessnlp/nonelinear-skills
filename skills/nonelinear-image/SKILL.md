@@ -19,8 +19,10 @@ NoneLinear request.
    - `generate`: no reference images.
    - `edit`: exactly one local image path or public HTTPS reference image URL.
    - `fuse`: at least two local paths or public HTTPS reference image URLs.
-3. Extract the prompt and optional model, aspect ratio, size, quality, and count.
-4. Default the model to `gemini-2.5-flash-image`. Always request URL output.
+3. Extract the prompt and optional model, aspect ratio, size, quality, and count. If the user asks
+   for a transparent image, apply the transparent-image preset below. For `gpt-image-2`, quality
+   defaults to `low` unless the user requests another supported value.
+4. Default other requests to `gemini-2.5-flash-image`. Always request URL output.
 5. Read [references/models.md](references/models.md) and, when exact limits matter,
    [references/model-capabilities.json](references/model-capabilities.json) before selecting a
    non-default model or adding model-specific parameters. Never invent a model ID or unsupported
@@ -31,6 +33,21 @@ NoneLinear request.
 7. Parse the single JSON object written to stdout. Claim success only when `status` is
    `completed` and `images` contains at least one `url` field.
 8. Return image URLs as clickable links. Never return or display base64 image data.
+
+## Transparent Images
+
+Treat any request for a transparent image, transparent background, cutout, or no background as
+transparent-output intent. The user does not need to name API parameters. Internally:
+
+- Use `gpt-image-2`.
+- Pass `--background transparent` and `--output-format png`.
+- Ensure the prompt explicitly requests a transparent background. Add that wording when the user's
+  intent is clear but the prompt does not already contain it.
+- Exclude the scene, floor, base, reflection, and shadow when the user wants a clean cutout.
+
+Do not claim that the model lacks transparency based only on a preview background. Validate the
+downloaded original PNG's alpha channel when verification is required; image viewers may display
+transparent pixels as white or a checkerboard.
 
 When the user gives a local image path, pass that path string directly to `--image-file`. Do not
 use `Read`, attach the image, inspect it, or encode it in the agent. The child script reads and
@@ -113,7 +130,6 @@ node "<skill-directory>/scripts/generate-image.mjs" \
   --model "gpt-image-2" \
   --prompt "一瓶高端植物精华液概念瓶，主体完整，透明背景，不要场景、地面、底座、投影和倒影" \
   --size "1024x1024" \
-  --quality "high" \
   --background "transparent" \
   --output-format "png"
 ```
@@ -139,7 +155,10 @@ Supported script arguments:
 - `--model <id>`: optional; defaults to `gemini-2.5-flash-image`.
 - `--aspect-ratio <ratio>`: optional; for example `1:1` or `16:9`.
 - `--size <size>`: optional; use only for a model documented to support it.
-- `--quality <low|medium|high|auto>`: optional and valid only for `gpt-image-2`; its API default is `auto`.
+- `--quality <low|medium|high|auto>`: optional and valid only for `gpt-image-2`; this Skill defaults
+  it to `low`.
+- `--api-key <key>`: optional credential for the current invocation when the user gives the key
+  directly to the host Agent. Prefer environment credentials when available.
 - `--n <count>`: optional integer from 1 through 10; omit when the model does not support it.
 - `--response-format <url>`: optional compatibility argument; only `url` is accepted.
 - `--output-format <png|jpeg|webp>`: model-specific; read the capability registry before use.
@@ -147,8 +166,12 @@ Supported script arguments:
 - `--watermark <true|false>`: Seedream 5 Pro only.
 - `--optimize-prompt-mode <standard|fast>`: Seedream 5 Pro only.
 
-Do not pass the API key as a command argument. Do not construct the request with `curl` or an
-ad hoc script; the bundled script enforces endpoint and output safety.
+Passing an API key through chat or a command can expose it to conversation history, process lists,
+or tool logs. Warn the user about this risk, but do not refuse the request solely because the user
+gave the key directly to the host Agent. Use `--api-key` only for the current invocation; do not
+echo it, include it in the final response, or persist it unless the user explicitly asks the host
+to configure it. Do not construct the request with `curl` or an ad hoc script; the bundled script
+enforces endpoint and output safety.
 
 For the default model, use no more than three reference images. Pass each URL or local path string
 directly to the script. Do not use `Read`, WebFetch, `curl`, browser tools, or another command to
@@ -172,10 +195,7 @@ For `gpt-image-2`, use `size`, not `aspect_ratio`. Higher `quality` usually incr
 output tokens, and cost. Read [references/models.md](references/models.md) for complete size
 constraints before choosing a custom resolution.
 
-For a transparent image, use `gpt-image-2` with `--background transparent` and
-`--output-format png` or `webp`. The prompt must also say that the background is transparent.
-Exclude the scene, floor, base, reflection, and shadow when the user wants a clean cutout. This
-Skill currently exposes transparent backgrounds only for text-to-image generation.
+This Skill currently exposes transparent backgrounds only for text-to-image generation.
 
 For `doubao-seedream-5-0-pro-260628`, use `size`, never `aspect_ratio` or `n`. It supports
 text-to-image, one-image editing, and fusion with up to ten references. Preserve `<point>` and
@@ -184,19 +204,20 @@ this model does not support it. Its request timeout is 600 seconds.
 
 ## Credentials
 
-The script reads credentials from the child process environment in this order:
+The script accepts credentials in this order:
 
-1. `NONELINEAR_API_KEY`
-2. `Nonelinear_API_KEY`
-3. `OPENAI_API_KEY`, only when `OPENAI_BASE_URL` is an HTTPS URL whose exact hostname is
+1. `--api-key`, when the user directly gives the key to the host Agent for the current request
+2. `NONELINEAR_API_KEY`
+3. `Nonelinear_API_KEY`
+4. `OPENAI_API_KEY`, only when `OPENAI_BASE_URL` is an HTTPS URL whose exact hostname is
    `api.nonelinear.com`
-4. `ANTHROPIC_AUTH_TOKEN` or `ANTHROPIC_API_KEY`, only when `ANTHROPIC_BASE_URL` is an HTTPS
+5. `ANTHROPIC_AUTH_TOKEN` or `ANTHROPIC_API_KEY`, only when `ANTHROPIC_BASE_URL` is an HTTPS
    URL whose exact hostname is `api.nonelinear.com`
 
 Do not read `.env`, cc-switch databases, or Claude/Codex configuration files. Those tools may
 inject credentials into the agent process environment. If the script returns
-`missing_api_key`, ask the user to configure an environment variable outside chat. Never ask
-the user to paste a real key into the conversation.
+`missing_api_key`, offer both choices: configure an environment variable, or provide a key for
+the current invocation after explaining that chat and tool logs may retain it.
 
 Request destinations are fixed to `https://nonelinear.com/api/upload-file` for local inputs and
 `https://api.nonelinear.com/v1/images/generations` for image generation. Environment variables
