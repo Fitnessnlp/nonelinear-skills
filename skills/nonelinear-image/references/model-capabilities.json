@@ -1,5 +1,5 @@
 {
-  "version": "0.3.0",
+  "version": "0.4.0",
   "generated_from": [
     {
       "path": "api/images.mdx",
@@ -295,6 +295,313 @@
       "response_format": { "url": true, "b64_json": "blocked" }
     },
     {
+      "id": "qwen-image-2.0",
+      "vendor": "Alibaba Qwen",
+      "status": "live_verified",
+      "document_sources": ["api/images.mdx:28", "api/images.mdx:675-738"],
+      "supported_operations": ["generate", "edit", "fuse"],
+      "verified_operations": ["generate"],
+      "verification": {
+        "last_live_verified_at": "2026-09-03",
+        "operations": [
+          {
+            "operation": "generate",
+            "prompt_language": "zh-CN",
+            "request": { "size": "1024*1024", "n": 1 },
+            "result": { "has_url": true, "image_count": 1, "elapsed_ms": 4396 }
+          },
+          {
+            "operation": "generate",
+            "prompt_language": "zh-CN",
+            "request": {
+              "size": "1024*1024",
+              "n": 2,
+              "prompt_extend": true,
+              "negative_prompt": true,
+              "seed": 12345,
+              "watermark": false
+            },
+            "result": { "has_url": true, "image_count": 1, "elapsed_ms": 4266 }
+          }
+        ]
+      },
+      "reference_images": { "min": 0, "max": 3, "required": false },
+      "input_image_limits": { "source": "provider_validated" },
+      "parameters": {
+        "aspect_ratio": { "supported": false },
+        "size": {
+          "supported": true,
+          "custom_constraints": {
+            "min_total_pixels": 262144,
+            "max_total_pixels": 4194304,
+            "dimension_separator": "*"
+          },
+          "examples": ["1024*1024", "1024*1536"]
+        },
+        "quality": { "supported": false },
+        "n": { "supported": true, "min": 1, "max": 6, "default": 1 },
+        "prompt_extend": { "supported": true, "type": "boolean", "default": true },
+        "negative_prompt": { "supported": true },
+        "seed": { "supported": true, "min": 0, "max": 2147483647 },
+        "watermark": { "supported": true, "type": "boolean" },
+        "response_format": { "supported": true, "allowed": ["url"] }
+      },
+      "request_timeout_ms": 300000,
+      "may_return_empty_image": false,
+      "known_errors": ["provider_validation_error", "invalid_size", "invalid_reference_image", "n_may_return_fewer_images_than_requested"],
+      "response_format": { "url": true, "b64_json": "blocked" }
+    },
+    {
+      "id": "qwen-image-2.0-pro",
+      "vendor": "Alibaba Qwen",
+      "status": "live_verified",
+      "document_sources": ["api/images.mdx:29", "api/images.mdx:675-738"],
+      "supported_operations": ["generate", "edit", "fuse"],
+      "verified_operations": ["generate"],
+      "verification": {
+        "last_live_verified_at": "2026-09-03",
+        "operations": [
+          {
+            "operation": "generate",
+            "prompt_language": "zh-CN",
+            "request": { "size": "1024*1024", "n": 1 },
+            "result": { "has_url": true, "image_count": 1, "elapsed_ms": 12183 }
+          },
+          {
+            "operation": "generate",
+            "prompt_language": "zh-CN",
+            "request": {
+              "size": "1024*1024",
+              "n": 2,
+              "prompt_extend": true,
+              "negative_prompt": true,
+              "seed": 12345,
+              "watermark": false
+            },
+            "result": { "has_url": true, "image_count": 1, "elapsed_ms": 13422 }
+          }
+        ]
+      },
+      "reference_images": { "min": 0, "max": 3, "required": false },
+      "input_image_limits": { "source": "provider_validated" },
+      "parameters": {
+        "aspect_ratio": { "supported": false },
+        "size": {
+          "supported": true,
+          "custom_constraints": {
+            "min_total_pixels": 262144,
+            "max_total_pixels": 4194304,
+            "dimension_separator": "*"
+          },
+          "examples": ["1024*1024", "1024*1536"]
+        },
+        "quality": { "supported": false },
+        "n": { "supported": true, "min": 1, "max": 6, "default": 1 },
+        "prompt_extend": { "supported": true, "type": "boolean", "default": true },
+        "negative_prompt": { "supported": true },
+        "seed": { "supported": true, "min": 0, "max": 2147483647 },
+        "watermark": { "supported": true, "type": "boolean" },
+        "response_format": { "supported": true, "allowed": ["url"] }
+      },
+      "request_timeout_ms": 300000,
+      "may_return_empty_image": false,
+      "known_errors": ["provider_validation_error", "invalid_size", "invalid_reference_image", "n_may_return_fewer_images_than_requested"],
+      "response_format": { "url": true, "b64_json": "blocked" }
+    },
+    {
+      "id": "qwen-image-3.0",
+      "vendor": "Alibaba Qwen",
+      "status": "host_verified",
+      "document_sources": ["pending_api/images.mdx_sync; parameter_policy_follows_api/images.mdx:28-29"],
+      "supported_operations": ["generate", "edit", "fuse"],
+      "verified_operations": ["generate", "edit"],
+      "host_verified_operations": ["generate"],
+      "verification": {
+        "last_live_verified_at": "2026-09-03",
+        "last_host_verified_at": "2026-09-04",
+        "operations": [
+          {
+            "operation": "generate",
+            "prompt_language": "zh-CN",
+            "request": { "size": "1024*1024", "n": 1 },
+            "result": { "has_url": true, "image_count": 1, "elapsed_ms": 43775 }
+          },
+          {
+            "operation": "generate",
+            "prompt_language": "zh-CN",
+            "request": { "size": "1024*1536", "n": 2 },
+            "result": { "has_url": true, "image_count": 1 }
+          },
+          {
+            "operation": "edit",
+            "prompt_language": "zh-CN",
+            "request": { "reference_images": 1, "size": "1024*1536", "n": 2 },
+            "result": { "has_url": true, "image_count": 1 }
+          }
+        ]
+      },
+      "reference_images": { "min": 0, "max": 3, "required": false },
+      "input_image_limits": { "source": "provider_validated" },
+      "parameters": {
+        "aspect_ratio": { "supported": false },
+        "size": {
+          "supported": true,
+          "custom_constraints": {
+            "min_total_pixels": 262144,
+            "max_total_pixels": 4194304,
+            "dimension_separator": "*"
+          },
+          "examples": ["1024*1024", "1024*1536"]
+        },
+        "quality": { "supported": false },
+        "n": { "supported": true, "min": 1, "max": 6, "default": 1 },
+        "prompt_extend": { "supported": true, "type": "boolean", "default": true },
+        "prompt_extend_mode": { "supported": true, "allowed": ["direct", "agent"], "default": "direct" },
+        "enable_thinking": { "supported": true, "type": "boolean", "default": true },
+        "negative_prompt": { "supported": true },
+        "seed": { "supported": true, "min": 0, "max": 2147483647 },
+        "watermark": { "supported": true, "type": "boolean" },
+        "response_format": { "supported": true, "allowed": ["url"] }
+      },
+      "request_timeout_ms": 300000,
+      "may_return_empty_image": false,
+      "known_errors": ["provider_validation_error", "documentation_missing", "n_may_return_fewer_images_than_requested"],
+      "response_format": { "url": true, "b64_json": "blocked" }
+    },
+    {
+      "id": "qwen-image-3.0-pro",
+      "vendor": "Alibaba Qwen",
+      "status": "live_verified",
+      "document_sources": ["pending_api/images.mdx_sync; parameter_policy_follows_api/images.mdx:28-29"],
+      "supported_operations": ["generate", "edit", "fuse"],
+      "verified_operations": ["generate", "fuse"],
+      "verification": {
+        "last_live_verified_at": "2026-09-03",
+        "operations": [
+          {
+            "operation": "generate",
+            "prompt_language": "zh-CN",
+            "request": { "size": "1024*1024", "n": 1 },
+            "result": { "has_url": true, "image_count": 1, "elapsed_ms": 35909 }
+          },
+          {
+            "operation": "generate",
+            "prompt_language": "zh-CN",
+            "request": {
+              "size": "1024*1024",
+              "n": 2,
+              "prompt_extend": true,
+              "prompt_extend_mode": "direct",
+              "enable_thinking": true,
+              "negative_prompt": true,
+              "seed": 12345,
+              "watermark": false
+            },
+            "result": { "has_url": true, "image_count": 1, "elapsed_ms": 43089 }
+          },
+          {
+            "operation": "fuse",
+            "prompt_language": "zh-CN",
+            "request": { "reference_images": 3, "size": "1024*1536", "n": 2 },
+            "result": { "has_url": true, "image_count": 1 }
+          }
+        ]
+      },
+      "reference_images": { "min": 0, "max": 3, "required": false },
+      "input_image_limits": { "source": "provider_validated" },
+      "parameters": {
+        "aspect_ratio": { "supported": false },
+        "size": {
+          "supported": true,
+          "custom_constraints": {
+            "min_total_pixels": 262144,
+            "max_total_pixels": 4194304,
+            "dimension_separator": "*"
+          },
+          "examples": ["1024*1024", "1024*1536"]
+        },
+        "quality": { "supported": false },
+        "n": { "supported": true, "min": 1, "max": 6, "default": 1 },
+        "prompt_extend": { "supported": true, "type": "boolean", "default": true },
+        "prompt_extend_mode": { "supported": true, "allowed": ["direct", "agent"], "default": "direct" },
+        "enable_thinking": { "supported": true, "type": "boolean", "default": true },
+        "negative_prompt": { "supported": true },
+        "seed": { "supported": true, "min": 0, "max": 2147483647 },
+        "watermark": { "supported": true, "type": "boolean" },
+        "response_format": { "supported": true, "allowed": ["url"] }
+      },
+      "request_timeout_ms": 300000,
+      "may_return_empty_image": false,
+      "known_errors": ["provider_validation_error", "documentation_missing", "n_may_return_fewer_images_than_requested"],
+      "response_format": { "url": true, "b64_json": "blocked" }
+    },
+    {
+      "id": "wan2.7-image",
+      "vendor": "Alibaba Wan",
+      "status": "live_verified",
+      "document_sources": ["api/images.mdx:686", "api/images.mdx:751", "api/images.mdx:798"],
+      "supported_operations": ["generate", "edit", "fuse"],
+      "verified_operations": ["generate"],
+      "verification": {
+        "last_live_verified_at": "2026-09-03",
+        "operation": "generate",
+        "prompt_language": "zh-CN",
+        "request": { "size": "1280*1280", "n": 1 },
+        "result": { "has_url": true, "image_count": 1, "elapsed_ms": 13318 }
+      },
+      "reference_images": {
+        "min": 0,
+        "max": 16,
+        "required": false,
+        "source": "skill_generic_limit; api/images.mdx lists edit and fuse but no exact count"
+      },
+      "input_image_limits": { "source": "not_documented_for_model_id" },
+      "parameters": {
+        "aspect_ratio": { "supported": false },
+        "size": { "supported": true, "observed_values": ["1280*1280"] },
+        "quality": { "supported": false },
+        "n": { "supported": true, "min": 1, "max": 4, "default": 1 },
+        "response_format": { "supported": true, "allowed": ["url"] }
+      },
+      "request_timeout_ms": 300000,
+      "may_return_empty_image": false,
+      "known_errors": ["provider_validation_error", "model_specific_limits_not_documented"],
+      "response_format": { "url": true, "b64_json": "blocked" }
+    },
+    {
+      "id": "wan2.7-image-pro",
+      "vendor": "Alibaba Wan",
+      "status": "live_verified",
+      "document_sources": ["api/images.mdx:686", "api/images.mdx:751", "api/images.mdx:798"],
+      "supported_operations": ["generate", "edit", "fuse"],
+      "verified_operations": ["generate"],
+      "verification": {
+        "last_live_verified_at": "2026-09-03",
+        "operation": "generate",
+        "prompt_language": "zh-CN",
+        "request": { "size": "1280*1280", "n": 1 },
+        "result": { "has_url": true, "image_count": 1, "elapsed_ms": 20085 }
+      },
+      "reference_images": {
+        "min": 0,
+        "max": 16,
+        "required": false,
+        "source": "skill_generic_limit; api/images.mdx lists edit and fuse but no exact count"
+      },
+      "input_image_limits": { "source": "not_documented_for_model_id" },
+      "parameters": {
+        "aspect_ratio": { "supported": false },
+        "size": { "supported": true, "observed_values": ["1280*1280"] },
+        "quality": { "supported": false },
+        "n": { "supported": true, "min": 1, "max": 4, "default": 1 },
+        "response_format": { "supported": true, "allowed": ["url"] }
+      },
+      "request_timeout_ms": 300000,
+      "may_return_empty_image": false,
+      "known_errors": ["provider_validation_error", "model_specific_limits_not_documented"],
+      "response_format": { "url": true, "b64_json": "blocked" }
+    },
+    {
       "id": "qwen-mt-image",
       "vendor": "Alibaba Qwen",
       "status": "candidate",
@@ -336,7 +643,7 @@
       "vendor": "Alibaba Qwen",
       "status": "passthrough",
       "document_sources": ["api/images.mdx:24-31", "api/images.mdx:642", "api/images.mdx:707", "api/images.mdx:754"],
-      "model_ids": ["qwen-image-2.0", "qwen-image-2.0-pro", "Qwen-Image", "qwen-image-max", "qwen-image-plus", "Qwen-Image-Edit", "qwen-image-edit-max", "qwen-image-edit-plus"],
+      "model_ids": ["Qwen-Image", "qwen-image-max", "qwen-image-plus", "Qwen-Image-Edit", "qwen-image-edit-max", "qwen-image-edit-plus"],
       "supported_operations": ["generate", "edit", "fuse"],
       "parameter_summary": "size-driven models; edit/fusion reference count usually 1-3; n range varies by ID."
     },
@@ -344,7 +651,7 @@
       "vendor": "Alibaba Wan",
       "status": "passthrough",
       "document_sources": ["api/images.mdx:33-42", "api/images.mdx:643", "api/images.mdx:708", "api/images.mdx:755"],
-      "model_ids": ["wan2.6-t2i", "wan2.5-t2i-preview", "wan2.2-t2i-plus", "wan2.2-t2i-flash", "wanx2.1-t2i-plus", "wanx2.1-t2i-turbo", "wanx-v1", "wan2.6-image", "wan2.5-i2i-preview", "wanx2.1-imageedit", "wan2.7-image", "wan2.7-image-pro"],
+      "model_ids": ["wan2.6-t2i", "wan2.5-t2i-preview", "wan2.2-t2i-plus", "wan2.2-t2i-flash", "wanx2.1-t2i-plus", "wanx2.1-t2i-turbo", "wanx-v1", "wan2.6-image", "wan2.5-i2i-preview", "wanx2.1-imageedit"],
       "supported_operations": ["generate", "edit", "fuse"],
       "parameter_summary": "size-driven generation and edit models; several edit IDs require reference images."
     },

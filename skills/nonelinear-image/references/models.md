@@ -21,9 +21,26 @@ empty-image behavior, and response handling.
 | `gemini-2.5-flash-image` | Google | `host_verified` | generate, edit, fuse | 0-3 | `aspect_ratio`; URL output only |
 | `gpt-image-2` | OpenAI | `implemented` | generate, edit, fuse | 0-16 | `size`, `quality`, `n`, `background`, `output_format`; URL output only |
 | `doubao-seedream-5-0-pro-260628` | ByteDance Doubao | `implemented` | generate, edit, fuse | 0-10 | `size`, `output_format`, `watermark`, `optimize_prompt_options.mode`; URL output only |
+| `qwen-image-2.0` | Alibaba Qwen | `live_verified` | generate, edit, fuse | 0-3 | `size`, `n`, `prompt_extend`, `negative_prompt`, `seed`, `watermark`; generate verified |
+| `qwen-image-2.0-pro` | Alibaba Qwen | `live_verified` | generate, edit, fuse | 0-3 | `size`, `n`, `prompt_extend`, `negative_prompt`, `seed`, `watermark`; generate verified |
+| `qwen-image-3.0` | Alibaba Qwen | `host_verified` | generate, edit, fuse | 0-3 | follows `qwen-image-2.0`: `size`, `n`; plus Qwen 3.0 extended params; generate host-verified |
+| `qwen-image-3.0-pro` | Alibaba Qwen | `live_verified` | generate, edit, fuse | 0-3 | follows `qwen-image-2.0`: `size`, `n`; plus Qwen 3.0 extended params; pending `api/images.mdx` sync |
+| `wan2.7-image` | Alibaba Wan | `live_verified` | generate, edit, fuse | generic 0-16 | `size`, `n`; generate verified |
+| `wan2.7-image-pro` | Alibaba Wan | `live_verified` | generate, edit, fuse | generic 0-16 | `size`, `n`; generate verified |
 
 Read the registry before selecting a non-default model or adding model-specific parameters.
 Never invent model IDs, parameter names, or unsupported values.
+
+## Historical Benchmark Snapshot
+
+[model-benchmark-snapshot.json](model-benchmark-snapshot.json) contains successful,
+cost-confirmed single-image observations from the August 2026 text-to-image and single-image
+editing runs. It is local reference data, not a live pricing source.
+
+Filter by `operation` and `comparison_group` before comparing records. Keep exact pixel requests,
+observed 1024-square results, and native/non-1024 square results separate. Always show
+`request_dimension_mode`, `request_size`, and `actual_size` as distinct fields. Quote prices and
+latency with the snapshot date and describe them as single benchmark observations.
 
 ## gpt-image-2
 
@@ -91,9 +108,36 @@ Preserve `<point>` and `<bbox>` tags in prompts. The returned URL suffix may not
 ## Passthrough and Candidate Models
 
 The registry also tracks documented model families from `api/images.mdx`, including Zhipu,
-Kling, Qwen, Wan, Stability, OpenAI image-1/1.5, DALL-E, MiniMax, Flux, Luma, Reve, Imagen,
-Seedream 4/4.5/Lite, and Vidu.
+Kling, remaining Qwen IDs, remaining Wan IDs, Stability, OpenAI image-1/1.5, DALL-E, MiniMax,
+Flux, Luma, Reve, Imagen, Seedream 4/4.5/Lite, and Vidu.
 
 Use `passthrough` models only when the user explicitly requests them or when the registry has
 enough documented constraints for the requested operation. Use `candidate` models only for
 planning or capability discussion; the script returns `not_implemented` for exact candidate IDs.
+
+## 2026-09-03 Live Smoke Results
+
+These models returned at least one image URL from a real text-to-image request through
+`POST /v1/images/generations`:
+
+- `qwen-image-2.0`: `size=1024*1024`, `n=1`, 4.4s
+- `qwen-image-2.0-pro`: `size=1024*1024`, `n=1`, 12.2s
+- `qwen-image-2.0`: `prompt_extend`, `negative_prompt`, `seed`, `watermark`, `size=1024*1024`,
+  `n=2`, returned 1 URL
+- `qwen-image-2.0-pro`: `prompt_extend`, `negative_prompt`, `seed`, `watermark`, `size=1024*1024`,
+  `n=2`, returned 1 URL
+- `qwen-image-3.0`: `size=1024*1024`, `n=1`, 43.8s
+- `qwen-image-3.0-pro`: `size=1024*1024`, `n=1`, 35.9s
+- `qwen-image-3.0`: `size=1024*1536`, `n=2`, returned 1 URL
+- `qwen-image-3.0`: single-image editing, `size=1024*1536`, `n=2`, returned 1 URL
+- `qwen-image-3.0-pro`: `prompt_extend`, `prompt_extend_mode`, `enable_thinking`,
+  `negative_prompt`, `seed`, `watermark`, `size=1024*1024`, `n=2`, returned 1 URL
+- `qwen-image-3.0-pro`: three-image fusion, `size=1024*1536`, `n=2`, returned 1 URL
+- `qwen-image-3.0`: Claude Code host end-to-end text-to-image returned 1 URL on 2026-09-04
+- `wan2.7-image`: `size=1280*1280`, `n=1`, 13.3s
+- `wan2.7-image-pro`: `size=1280*1280`, `n=1`, 20.1s
+
+Text-to-image is live-verified for these six models. `qwen-image-3.0` single-image editing and
+`qwen-image-3.0-pro` three-image fusion have also passed direct API tests. Remaining editing and
+fusion paths still need separate API and host-agent verification before they can be marked
+host-verified.

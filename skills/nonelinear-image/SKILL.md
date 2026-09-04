@@ -1,8 +1,8 @@
 ---
 name: nonelinear-image
-description: Generate images, create transparent-background PNGs, edit one image, or fuse multiple reference images through the NoneLinear image API, including Doubao Seedream 5 Pro. Use when a user asks a shell-capable agent to create, draw, render, restyle, modify, combine, or blend images with NoneLinear, including requests that specify an image model, local image paths, public reference image URLs, aspect ratio, size, count, background, or response format.
+description: Generate, edit, or fuse images through NoneLinear from a shell-capable agent, or answer NoneLinear image-model parameter, historical price, latency, and size comparison questions from bundled references. Use for image creation or transformation requests involving NoneLinear, including local references, transparent backgrounds, model selection, dimensions, price, or latency.
 metadata:
-  version: "0.3.0"
+  version: "0.4.0"
 ---
 
 # NoneLinear Image
@@ -33,6 +33,28 @@ NoneLinear request.
 7. Parse the single JSON object written to stdout. Claim success only when `status` is
    `completed` and `images` contains at least one `url` field.
 8. Return image URLs as clickable links. Never return or display base64 image data.
+
+## Parameter and Benchmark Queries
+
+When the user asks only about model parameters, price, latency, dimensions, or comparisons:
+
+- Read [references/model-capabilities.json](references/model-capabilities.json) for documented
+  model support and parameter limits.
+- Read [references/model-benchmark-snapshot.json](references/model-benchmark-snapshot.json) for
+  historical price, latency, request dimensions, and observed output dimensions.
+- Do not run `generate-image.mjs`, request an API key, access the network, or make a billable API
+  request.
+- Filter by `operation` first: `generate` is text-to-image and `edit` is single-image editing.
+  The snapshot has no multi-image fusion price data.
+- Compare records only when `comparison_group`, `currency`, `data_version`, and
+  `returned_image_count` match. Otherwise report that the records are not directly comparable.
+- Keep `request_size` and `actual_size` distinct. An observed output size does not prove that a
+  model accepts an exact pixel-size parameter.
+- Identify every price and latency result as a single benchmark observation and include the
+  snapshot's `data_version` and `as_of` date. A zero-cost record means only that the recorded
+  charge was zero; do not call the model free.
+- Treat `configuration_label` as a display label, not a model ID. For example,
+  `gpt-image-2-low` means `model=gpt-image-2` with `quality=low`.
 
 ## Transparent Images
 
@@ -157,21 +179,20 @@ Supported script arguments:
 - `--size <size>`: optional; use only for a model documented to support it.
 - `--quality <low|medium|high|auto>`: optional and valid only for `gpt-image-2`; this Skill defaults
   it to `low`.
-- `--api-key <key>`: optional credential for the current invocation when the user gives the key
-  directly to the host Agent. Prefer environment credentials when available.
 - `--n <count>`: optional integer from 1 through 10; omit when the model does not support it.
 - `--response-format <url>`: optional compatibility argument; only `url` is accepted.
 - `--output-format <png|jpeg|webp>`: model-specific; read the capability registry before use.
 - `--background <auto|opaque|transparent>`: `gpt-image-2` generation only.
-- `--watermark <true|false>`: Seedream 5 Pro only.
+- `--watermark <true|false>`: Seedream 5 Pro and Qwen 2.0/3.0 models only.
 - `--optimize-prompt-mode <standard|fast>`: Seedream 5 Pro only.
+- `--negative-prompt <text>`: Qwen 2.0/3.0 models only.
+- `--prompt-extend <true|false>`: Qwen 2.0/3.0 models only.
+- `--prompt-extend-mode <direct|agent>`: Qwen 3.0 models only; `agent` is generation only.
+- `--enable-thinking <true|false>`: Qwen 3.0 models only; requires prompt extension.
+- `--seed <integer>`: Qwen 2.0/3.0 models only.
 
-Passing an API key through chat or a command can expose it to conversation history, process lists,
-or tool logs. Warn the user about this risk, but do not refuse the request solely because the user
-gave the key directly to the host Agent. Use `--api-key` only for the current invocation; do not
-echo it, include it in the final response, or persist it unless the user explicitly asks the host
-to configure it. Do not construct the request with `curl` or an ad hoc script; the bundled script
-enforces endpoint and output safety.
+Do not pass the API key as a command argument. Do not construct the request with `curl` or an
+ad hoc script; the bundled script enforces endpoint and output safety.
 
 For the default model, use no more than three reference images. Pass each URL or local path string
 directly to the script. Do not use `Read`, WebFetch, `curl`, browser tools, or another command to
@@ -202,22 +223,34 @@ text-to-image, one-image editing, and fusion with up to ten references. Preserve
 `<bbox>` tags in prompts. Do not attempt grouped output or pass `sequential_image_generation`;
 this model does not support it. Its request timeout is 600 seconds.
 
+For Qwen and Wan models, read the registry before adding parameters. `qwen-image-3.0` and
+`qwen-image-3.0-pro` are pending `api/images.mdx` sync, but this Skill applies the documented
+`qwen-image-2.0` parameter policy to them: `size`, no `aspect_ratio`, up to three reference
+images, and `n` from 1 through 6. `prompt_extend`, `negative_prompt`, `seed`, and `watermark`
+have been verified through NoneLinear on Qwen 2.0 and 3.0. `qwen-image-2.0`, `qwen-image-2.0-pro`,
+`qwen-image-3.0`, `qwen-image-3.0-pro`, `wan2.7-image`, and `wan2.7-image-pro` have passed
+direct text-to-image smoke tests. `qwen-image-3.0` single-image editing and
+`qwen-image-3.0-pro` three-image fusion also passed direct API tests. Do not present other
+editing or fusion paths as verified until a separate reference-image test has passed. In
+observed NoneLinear responses, Qwen 3.0 requests with `n=2` returned one image URL; do not
+promise multiple returned images until that behavior is confirmed for the target account/model.
+`qwen-image-3.0` text-to-image has passed Claude Code host end-to-end verification.
+
 ## Credentials
 
-The script accepts credentials in this order:
+The script reads credentials from the child process environment in this order:
 
-1. `--api-key`, when the user directly gives the key to the host Agent for the current request
-2. `NONELINEAR_API_KEY`
-3. `Nonelinear_API_KEY`
-4. `OPENAI_API_KEY`, only when `OPENAI_BASE_URL` is an HTTPS URL whose exact hostname is
+1. `NONELINEAR_API_KEY`
+2. `Nonelinear_API_KEY`
+3. `OPENAI_API_KEY`, only when `OPENAI_BASE_URL` is an HTTPS URL whose exact hostname is
    `api.nonelinear.com`
-5. `ANTHROPIC_AUTH_TOKEN` or `ANTHROPIC_API_KEY`, only when `ANTHROPIC_BASE_URL` is an HTTPS
+4. `ANTHROPIC_AUTH_TOKEN` or `ANTHROPIC_API_KEY`, only when `ANTHROPIC_BASE_URL` is an HTTPS
    URL whose exact hostname is `api.nonelinear.com`
 
 Do not read `.env`, cc-switch databases, or Claude/Codex configuration files. Those tools may
 inject credentials into the agent process environment. If the script returns
-`missing_api_key`, offer both choices: configure an environment variable, or provide a key for
-the current invocation after explaining that chat and tool logs may retain it.
+`missing_api_key`, ask the user to configure an environment variable outside chat. Never ask
+the user to paste a real key into the conversation.
 
 Request destinations are fixed to `https://nonelinear.com/api/upload-file` for local inputs and
 `https://api.nonelinear.com/v1/images/generations` for image generation. Environment variables

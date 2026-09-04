@@ -114,11 +114,6 @@ export function parseArguments(argv) {
     validateRegistryParameterValue(modelCapability, model, "quality", quality, "--quality");
   }
 
-  const apiKey = normalizeOptional(values.apiKey);
-  if (apiKey && (apiKey.length > 4096 || /[\u0000-\u001f\u007f]/.test(apiKey))) {
-    throw new SkillError("invalid_arguments", "--api-key is invalid.");
-  }
-
   let n;
   if (values.n !== undefined) {
     n = Number(values.n);
@@ -151,6 +146,38 @@ export function parseArguments(argv) {
     );
   }
 
+  const negativePrompt = normalizeOptional(values.negativePrompt);
+  if (negativePrompt) {
+    validateRegistryParameterValue(modelCapability, model, "negative_prompt", negativePrompt, "--negative-prompt");
+  }
+
+  const promptExtend = parseOptionalBoolean(values.promptExtend, "--prompt-extend");
+  if (promptExtend !== undefined) {
+    validateRegistryBooleanParameter(modelCapability, model, "prompt_extend", "--prompt-extend");
+  }
+
+  const promptExtendMode = normalizeOptional(values.promptExtendMode)?.toLowerCase();
+  if (promptExtendMode) {
+    validateRegistryParameterValue(
+      modelCapability,
+      model,
+      "prompt_extend_mode",
+      promptExtendMode,
+      "--prompt-extend-mode"
+    );
+  }
+
+  const enableThinking = parseOptionalBoolean(values.enableThinking, "--enable-thinking");
+  if (enableThinking !== undefined) {
+    validateRegistryBooleanParameter(modelCapability, model, "enable_thinking", "--enable-thinking");
+  }
+
+  let seed;
+  if (values.seed !== undefined) {
+    seed = Number(values.seed);
+    validateRegistryIntegerParameter(modelCapability, model, "seed", seed, "--seed");
+  }
+
   const references = values.references;
   if (references.length > maxReferenceImagesForModel(model)) {
     throw new SkillError("invalid_arguments", "Too many reference images for the selected model.");
@@ -162,6 +189,12 @@ export function parseArguments(argv) {
   }
   validateModelOperation(modelCapability, model, operation, references.length);
   validateOperationImages(operation, references.length);
+  if (enableThinking === true && promptExtend === false) {
+    throw new SkillError("invalid_arguments", "--enable-thinking true requires --prompt-extend true.");
+  }
+  if (promptExtendMode === "agent" && operation !== "generate") {
+    throw new SkillError("invalid_arguments", "--prompt-extend-mode agent is supported only for generation.");
+  }
   if (background && operation !== "generate") {
     throw new SkillError("invalid_arguments", "--background is currently supported only for generation.");
   }
@@ -186,7 +219,11 @@ export function parseArguments(argv) {
     background,
     watermark,
     optimizePromptMode,
-    ...(apiKey ? { apiKey } : {})
+    ...(negativePrompt ? { negativePrompt } : {}),
+    ...(promptExtend !== undefined ? { promptExtend } : {}),
+    ...(promptExtendMode ? { promptExtendMode } : {}),
+    ...(enableThinking !== undefined ? { enableThinking } : {}),
+    ...(seed !== undefined ? { seed } : {})
   };
 }
 
@@ -211,7 +248,7 @@ export async function generateImage(options, dependencies = {}) {
   const fetchImpl = dependencies.fetchImpl ?? globalThis.fetch;
   const readFileImpl = dependencies.readFileImpl ?? readFile;
   const timeoutMs = dependencies.timeoutMs ?? requestTimeoutMsForModel(options.model);
-  const apiKey = options.apiKey ?? resolveApiKey(env);
+  const apiKey = resolveApiKey(env);
 
   if (!apiKey) {
     throw new SkillError(
@@ -248,6 +285,11 @@ export async function generateImage(options, dependencies = {}) {
   if (options.optimizePromptMode) {
     body.optimize_prompt_options = { mode: options.optimizePromptMode };
   }
+  if (options.negativePrompt) body.negative_prompt = options.negativePrompt;
+  if (options.promptExtend !== undefined) body.prompt_extend = options.promptExtend;
+  if (options.promptExtendMode) body.prompt_extend_mode = options.promptExtendMode;
+  if (options.enableThinking !== undefined) body.enable_thinking = options.enableThinking;
+  if (options.seed !== undefined) body.seed = options.seed;
   if (imageUrls.length) {
     body.image = imageUrls.length === 1 ? imageUrls[0] : imageUrls;
   }
@@ -356,13 +398,17 @@ function optionKey(name) {
     "--aspect-ratio": "aspectRatio",
     "--size": "size",
     "--quality": "quality",
-    "--api-key": "apiKey",
     "--n": "n",
     "--response-format": "responseFormat",
     "--output-format": "outputFormat",
     "--background": "background",
     "--watermark": "watermark",
-    "--optimize-prompt-mode": "optimizePromptMode"
+    "--optimize-prompt-mode": "optimizePromptMode",
+    "--negative-prompt": "negativePrompt",
+    "--prompt-extend": "promptExtend",
+    "--prompt-extend-mode": "promptExtendMode",
+    "--enable-thinking": "enableThinking",
+    "--seed": "seed"
   };
   const key = options[name];
   if (!key) {
@@ -545,6 +591,15 @@ function validateRegistryParameterValue(capability, model, parameterName, value,
   if (!parameter?.supported) {
     throw new SkillError("invalid_arguments", `${model} does not support ${optionName}.`);
   }
+  if (parameterName === "size" && parameter.custom_constraints) {
+    validateCustomSizeConstraints(model, value, parameter.custom_constraints);
+  }
+  if (Array.isArray(parameter.observed_values) && !parameter.observed_values.includes(value)) {
+    throw new SkillError(
+      "invalid_arguments",
+      `${model} ${optionName} currently supports observed values: ${parameter.observed_values.join(", ")}.`
+    );
+  }
   if (Array.isArray(parameter.allowed) && !parameter.allowed.includes(value)) {
     throw new SkillError(
       "invalid_arguments",
@@ -618,6 +673,25 @@ function validateGptImage2Size(size) {
     pixels > 8_294_400
   ) {
     throw new SkillError("invalid_arguments", "gpt-image-2 --size does not meet the documented constraints.");
+  }
+}
+
+function validateCustomSizeConstraints(model, size, constraints) {
+  const match = /^(\d+)[x*](\d+)$/.exec(size);
+  if (!match) {
+    throw new SkillError("invalid_arguments", `${model} --size must be WIDTH*HEIGHT.`);
+  }
+
+  const width = Number(match[1]);
+  const height = Number(match[2]);
+  const pixels = width * height;
+  const minTotalPixels = constraints.min_total_pixels;
+  const maxTotalPixels = constraints.max_total_pixels;
+  if (
+    (Number.isInteger(minTotalPixels) && pixels < minTotalPixels) ||
+    (Number.isInteger(maxTotalPixels) && pixels > maxTotalPixels)
+  ) {
+    throw new SkillError("invalid_arguments", `${model} --size does not meet the documented pixel constraints.`);
   }
 }
 
