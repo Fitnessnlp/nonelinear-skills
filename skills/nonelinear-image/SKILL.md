@@ -2,7 +2,7 @@
 name: nonelinear-image
 description: Generate, edit, or fuse images through NoneLinear from a shell-capable agent, or answer NoneLinear image-model parameter, historical price, latency, and size comparison questions from bundled references. Use for image creation or transformation requests involving NoneLinear, including local references, transparent backgrounds, model selection, dimensions, price, or latency.
 metadata:
-  version: "0.4.0"
+  version: "0.4.1"
 ---
 
 # NoneLinear Image
@@ -38,21 +38,44 @@ NoneLinear request.
 
 When the user asks only about model parameters, price, latency, dimensions, or comparisons:
 
-- Read [references/model-capabilities.json](references/model-capabilities.json) for documented
-  model support and parameter limits.
-- Read [references/model-benchmark-snapshot.json](references/model-benchmark-snapshot.json) for
-  historical price, latency, request dimensions, and observed output dimensions.
-- Do not run `generate-image.mjs`, request an API key, access the network, or make a billable API
-  request.
+- Run `scripts/query-image-models.mjs`; do not load the full registry or benchmark snapshot into
+  Agent context. The query script reads bundled JSON only and does not access the network or API
+  keys. It does not incur an image-generation charge, although normal host-model usage still
+  applies.
+- For a vague value question such as "which image model is cost-effective", assume `generate`, one
+  image, about `1k`, `1:1`, and cost-first. State these assumptions instead of asking for exact
+  pixels. Treat `1k` or `2k` as resolution and `1:1` as aspect ratio; they are not interchangeable.
+- Run the default comparison with:
+
+  ```bash
+  node "<skill-directory>/scripts/query-image-models.mjs" benchmark \
+    --operation generate --resolution 1k --aspect-ratio 1:1 --sort cost --limit 3
+  ```
+
+- Query selected model parameters without reading the full registry:
+
+  ```bash
+  node "<skill-directory>/scripts/query-image-models.mjs" capabilities \
+    --models "gpt-image-2,gemini-3.1-flash-image-preview"
+  ```
+
+- Describe "cost-effective" only in terms of historical cost and latency. The bundled data has no
+  quality score, so do not claim an overall value or quality winner.
+- Keep the default answer compact: show at most three ranked records per comparison group, then one
+  short conclusion. Do not paste the query script's raw JSON.
 - Filter by `operation` first: `generate` is text-to-image and `edit` is single-image editing.
   The snapshot has no multi-image fusion price data.
-- Compare records only when `comparison_group`, `currency`, `data_version`, and
-  `returned_image_count` match. Otherwise report that the records are not directly comparable.
+- Keep each returned `comparison_group` separate. Never merge exact `1024x1024` requests with
+  models that produced an observed 1K square through a tier, aspect ratio, or provider default.
 - Keep `request_size` and `actual_size` distinct. An observed output size does not prove that a
   model accepts an exact pixel-size parameter.
-- Identify every price and latency result as a single benchmark observation and include the
-  snapshot's `data_version` and `as_of` date. A zero-cost record means only that the recorded
-  charge was zero; do not call the model free.
+- Include `data_version`, `as_of`, and currency. Present `zero_cost_observations` separately as
+  unconfirmed historical observations, not ranked recommendations or free models.
+- Omit source columns. Only when the user explicitly asks for price provenance, rerun with
+  `--include-cost-source true` and explain that it is internal historical provenance.
+- When no comparable group exists, including current 2K or fusion price queries, say that the
+  bundled data is insufficient. For 2K, run `capabilities --operation generate --resolution 2k`
+  to list parameter support but do not construct a price ranking.
 - Treat `configuration_label` as a display label, not a model ID. For example,
   `gpt-image-2-low` means `model=gpt-image-2` with `quality=low`.
 
