@@ -31,8 +31,8 @@ Image request fields:
 | `seed` | integer | no | Qwen 2.0/3.0 models only. |
 
 The bundled script intentionally does not accept an endpoint option, arbitrary headers, an
-arbitrary JSON body, or an API-key command argument. Credentials must come from the child process
-environment.
+arbitrary JSON body, or an API-key command argument. Credentials come from supported environment
+variables or the user credential file created by `scripts/configure-api-key.mjs`.
 
 For a transparent `gpt-image-2` result, set `background=transparent`, use PNG or WebP output,
 and explicitly request a transparent background in the prompt. Exclude floors, shadows,
@@ -106,7 +106,9 @@ from the URL suffix.
 
 | Code | Meaning |
 | --- | --- |
-| `missing_api_key` | No credential was supplied through a supported environment variable. |
+| `missing_api_key` | No credential was found in supported environment variables or the user credential file. |
+| `credential_file_invalid` | The user credential file is malformed or has an unsupported version. |
+| `credential_file_unreadable` | The user credential file exists but cannot be read. |
 | `invalid_arguments` | A required argument is missing or an option is malformed. |
 | `invalid_model` | The API rejected or could not find the model ID. |
 | `not_implemented` | The model is documented or mentioned, but this Skill has not connected it. |

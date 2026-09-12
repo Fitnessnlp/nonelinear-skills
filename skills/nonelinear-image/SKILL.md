@@ -2,7 +2,7 @@
 name: nonelinear-image
 description: Generate, edit, or fuse images through NoneLinear from a shell-capable agent, or answer NoneLinear image-model parameter, historical price, latency, and size comparison questions from bundled references. Use for image creation or transformation requests involving NoneLinear, including local references, transparent backgrounds, model selection, dimensions, price, or latency.
 metadata:
-  version: "0.4.1"
+  version: "0.4.2"
 ---
 
 # NoneLinear Image
@@ -30,9 +30,50 @@ NoneLinear request.
 6. Locate `scripts/generate-image.mjs` relative to this `SKILL.md` and invoke it with Node.js
    18 or newer. In Claude Code, `${CLAUDE_SKILL_DIR}` is the skill directory. In other hosts,
    use the absolute directory from which this skill was loaded.
-7. Parse the single JSON object written to stdout. Claim success only when `status` is
+7. Parse the single JSON object written to stdout. If it returns `missing_api_key`, follow
+   Credential Setup below instead of leaving the user with a raw error.
+8. Claim success only when `status` is
    `completed` and `images` contains at least one `url` field.
-8. Return image URLs as clickable links. Never return or display base64 image data.
+9. Return image URLs as clickable links. Never return or display base64 image data.
+
+## Credential Setup
+
+The generation script first checks supported environment variables, then the user's persistent
+NoneLinear credential file. This avoids relying on environment variables added from another
+terminal after a desktop Agent such as WorkBuddy has already started.
+
+When no credential is found:
+
+- Tell the user that image generation requires a NoneLinear API key.
+- If the user already has a key, offer to verify and save it for later requests. Before asking them
+  to send it, warn that chat history may retain it and recommend a temporary key with a small
+  budget. If they send it after accepting this flow, start `scripts/configure-api-key.mjs` and
+  provide the key through the process's stdin. Never put the key in the command text or arguments.
+- If the user does not have a key, direct them to
+  [register or sign in](https://nonelinear.com/static/signin.html), then open the
+  [API key page](https://nonelinear.com/static/apikey.html); use the
+  [quick-start guide](https://docs.nonelinear.com/quickstart) when they need detailed steps. New
+  users currently receive CNY 5 in trial credit. The bundled 2026-08 benchmark observed a
+  1024-square `gpt-image-2` `low` request at CNY 0.044296, so the trial credit can cover roughly
+  100 such generations; say that actual cost is determined by the account's usage records.
+
+Configure a new key by starting this command, then sending the key only to its stdin:
+
+```bash
+node "<skill-directory>/scripts/configure-api-key.mjs"
+```
+
+If a credential already exists, ask before replacing it, then use `--replace`. Remove a saved
+credential only when the user asks, using `--clear`. These flags never contain the key:
+
+```bash
+node "<skill-directory>/scripts/configure-api-key.mjs" --replace
+node "<skill-directory>/scripts/configure-api-key.mjs" --clear
+```
+
+The setup script verifies the key through the fixed NoneLinear models endpoint before saving it.
+On macOS and Linux it stores the credential under `~/.config/nonelinear/credentials.json`; on
+Windows it uses `%APPDATA%\NoneLinear\credentials.json`. Never create `.env` inside the Skill.
 
 ## Parameter and Benchmark Queries
 
@@ -214,8 +255,9 @@ Supported script arguments:
 - `--enable-thinking <true|false>`: Qwen 3.0 models only; requires prompt extension.
 - `--seed <integer>`: Qwen 2.0/3.0 models only.
 
-Do not pass the API key as a command argument. Do not construct the request with `curl` or an
-ad hoc script; the bundled script enforces endpoint and output safety.
+Do not pass the API key as a command argument. Use the credential setup flow above when the user
+chooses local persistence. Do not construct image requests with `curl` or an ad hoc script; the
+bundled script enforces endpoint and output safety.
 
 For the default model, use no more than three reference images. Pass each URL or local path string
 directly to the script. Do not use `Read`, WebFetch, `curl`, browser tools, or another command to
@@ -259,9 +301,9 @@ observed NoneLinear responses, Qwen 3.0 requests with `n=2` returned one image U
 promise multiple returned images until that behavior is confirmed for the target account/model.
 `qwen-image-3.0` text-to-image has passed Claude Code host end-to-end verification.
 
-## Credentials
+## Credential Resolution
 
-The script reads credentials from the child process environment in this order:
+The script resolves credentials in this order:
 
 1. `NONELINEAR_API_KEY`
 2. `Nonelinear_API_KEY`
@@ -269,11 +311,11 @@ The script reads credentials from the child process environment in this order:
    `api.nonelinear.com`
 4. `ANTHROPIC_AUTH_TOKEN` or `ANTHROPIC_API_KEY`, only when `ANTHROPIC_BASE_URL` is an HTTPS
    URL whose exact hostname is `api.nonelinear.com`
+5. The user credential file created by `scripts/configure-api-key.mjs`
 
-Do not read `.env`, cc-switch databases, or Claude/Codex configuration files. Those tools may
-inject credentials into the agent process environment. If the script returns
-`missing_api_key`, ask the user to configure an environment variable outside chat. Never ask
-the user to paste a real key into the conversation.
+Do not read `.env`, cc-switch databases, or Claude/Codex configuration files. Do not save a key
+unless the user accepted the persistence flow described above. Never echo a key, include it in
+the final response, or persist it inside the Skill directory.
 
 Request destinations are fixed to `https://nonelinear.com/api/upload-file` for local inputs and
 `https://api.nonelinear.com/v1/images/generations` for image generation. Environment variables

@@ -7,6 +7,11 @@ import { createRequire } from "node:module";
 import { isIP } from "node:net";
 import { fileURLToPath } from "node:url";
 
+import {
+  CredentialError,
+  resolveApiKey as resolveCredentialApiKey
+} from "./credentials.mjs";
+
 const require = createRequire(import.meta.url);
 
 export const MODEL_CAPABILITY_REGISTRY = require("../references/model-capabilities.json");
@@ -227,20 +232,8 @@ export function parseArguments(argv) {
   };
 }
 
-export function resolveApiKey(env) {
-  const direct = normalizeOptional(env.NONELINEAR_API_KEY) ?? normalizeOptional(env.Nonelinear_API_KEY);
-  if (direct) return direct;
-
-  if (isNoneLinearHttpsUrl(env.OPENAI_BASE_URL)) {
-    const openAiKey = normalizeOptional(env.OPENAI_API_KEY);
-    if (openAiKey) return openAiKey;
-  }
-
-  if (isNoneLinearHttpsUrl(env.ANTHROPIC_BASE_URL)) {
-    return normalizeOptional(env.ANTHROPIC_AUTH_TOKEN) ?? normalizeOptional(env.ANTHROPIC_API_KEY);
-  }
-
-  return undefined;
+export function resolveApiKey(env, options = {}) {
+  return resolveCredentialApiKey(env, options);
 }
 
 export async function generateImage(options, dependencies = {}) {
@@ -248,7 +241,7 @@ export async function generateImage(options, dependencies = {}) {
   const fetchImpl = dependencies.fetchImpl ?? globalThis.fetch;
   const readFileImpl = dependencies.readFileImpl ?? readFile;
   const timeoutMs = dependencies.timeoutMs ?? requestTimeoutMsForModel(options.model);
-  const apiKey = resolveApiKey(env);
+  const apiKey = resolveApiKey(env, dependencies);
 
   if (!apiKey) {
     throw new SkillError(
@@ -368,8 +361,11 @@ export async function generateImage(options, dependencies = {}) {
 }
 
 export function failureResult(error, env = process.env) {
-  const apiKey = resolveApiKey(env);
-  if (error instanceof SkillError) {
+  let apiKey;
+  try {
+    apiKey = resolveApiKey(env);
+  } catch {}
+  if (error instanceof SkillError || error instanceof CredentialError) {
     return {
       status: "failed",
       error: redactSecret(error.message, apiKey),
@@ -754,21 +750,6 @@ function parseOptionalBoolean(value, name) {
   if (normalized === "true") return true;
   if (normalized === "false") return false;
   throw new SkillError("invalid_arguments", `${name} must be true or false.`);
-}
-
-function isNoneLinearHttpsUrl(value) {
-  const normalized = normalizeOptional(value);
-  if (!normalized) return false;
-  try {
-    const url = new URL(normalized);
-    return (
-      url.protocol === "https:" &&
-      url.hostname.toLowerCase() === "api.nonelinear.com" &&
-      (url.port === "" || url.port === "443")
-    );
-  } catch {
-    return false;
-  }
 }
 
 function parseJsonObject(text) {
