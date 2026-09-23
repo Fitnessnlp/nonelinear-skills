@@ -23,8 +23,8 @@
     "response_format": "url"
   },
   "endpoints": {
-    "image_generation": "https://api.nonelinear.com/v1/images/generations",
-    "local_upload": "https://nonelinear.com/api/upload-file"
+    "image_generation": "https://api.nonelinear.com.cn/v1/images/generations",
+    "local_upload": "https://nonelinear.com.cn/api/upload-file"
   },
   "local_upload": {
     "allowed_file_extensions": [".bmp", ".gif", ".jpeg", ".jpg", ".png", ".tif", ".tiff", ".webp"],

@@ -308,17 +308,17 @@ The script resolves credentials in this order:
 1. `NONELINEAR_API_KEY`
 2. `Nonelinear_API_KEY`
 3. `OPENAI_API_KEY`, only when `OPENAI_BASE_URL` is an HTTPS URL whose exact hostname is
-   `api.nonelinear.com`
+   `api.nonelinear.com.cn`
 4. `ANTHROPIC_AUTH_TOKEN` or `ANTHROPIC_API_KEY`, only when `ANTHROPIC_BASE_URL` is an HTTPS
-   URL whose exact hostname is `api.nonelinear.com`
+   URL whose exact hostname is `api.nonelinear.com.cn`
 5. The user credential file created by `scripts/configure-api-key.mjs`
 
 Do not read `.env`, cc-switch databases, or Claude/Codex configuration files. Do not save a key
 unless the user accepted the persistence flow described above. Never echo a key, include it in
 the final response, or persist it inside the Skill directory.
 
-Request destinations are fixed to `https://nonelinear.com/api/upload-file` for local inputs and
-`https://api.nonelinear.com/v1/images/generations` for image generation. Environment variables
+Request destinations are fixed to `https://nonelinear.com.cn/api/upload-file` for local inputs and
+`https://api.nonelinear.com.cn/v1/images/generations` for image generation. Environment variables
 cannot redirect them.
 
 ## Result Handling
@@ -356,3 +356,5 @@ show request headers, an Authorization value, a complete request object, or cred
 Do not use this Skill for video generation, model listing, general-purpose file uploading, or
 downloading output files. Local image upload is only an internal preprocessing step for edit and
 fusion requests.
+
+> 凭据兼容说明：复用宿主环境变量中的 Key 时，也接受旧域名 `api.nonelinear.com`，但必须是 HTTPS 且主机名精确匹配。生图、文件上传和 Key 验证请求均使用 `.com.cn` 新域名；兼容旧凭据配置不会将请求发往旧域名。

@@ -3,7 +3,7 @@
 ## Request
 
 - Method: `POST`
-- Fixed URL: `https://api.nonelinear.com/v1/images/generations`
+- Fixed URL: `https://api.nonelinear.com.cn/v1/images/generations`
 - Authentication: `Authorization: Bearer <API key>`
 - Content type: `application/json`
 - Behavior: synchronous; generation may take several minutes.
@@ -56,7 +56,7 @@ calling the image endpoint:
 
 1. Read the local file inside the child Node.js process.
 2. Base64-encode the bytes without a data URL prefix.
-3. Send `POST https://nonelinear.com/api/upload-file` with the same bearer credential.
+3. Send `POST https://nonelinear.com.cn/api/upload-file` with the same bearer credential.
 4. Use the returned public HTTPS `url` as the image reference.
 
 Upload request body:

@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 
 export const CREDENTIAL_VERSION = 1;
-export const VERIFY_ENDPOINT = "https://api.nonelinear.com/v1/models";
+export const VERIFY_ENDPOINT = "https://api.nonelinear.com.cn/v1/models";
 
 export class CredentialError extends Error {
   constructor(code, message) {
@@ -167,7 +167,7 @@ function isNoneLinearHttpsUrl(value) {
     const parsed = new URL(value);
     return (
       parsed.protocol === "https:" &&
-      parsed.hostname.toLowerCase() === "api.nonelinear.com" &&
+      ["api.nonelinear.com.cn", "api.nonelinear.com"].includes(parsed.hostname.toLowerCase()) &&
       (parsed.port === "" || parsed.port === "443")
     );
   } catch {
